@@ -85,6 +85,32 @@ requirements.txt는 ruamel.yaml==0.18.17을 고정합니다. CPython <3.15에서
 
 별도 init 명령은 없습니다. list가 데이터 루트의 jobs/와 runtime/을 만들며 새 설치의 목록은 []입니다. 명령은 항상 runner/, dashboard/가 있는 코드 루트에서 실행합니다. `python -m runner --root DATA_ROOT list`처럼 --root는 하위 명령 앞에 오며 데이터 경로만 선택합니다. Python 모듈 검색 경로를 바꾸지 않습니다. 코드와 데이터 루트가 다르면 .env도 데이터 루트 기준입니다.
 
+### Codex 프로젝트의 Dashboard Skill 등록
+
+Codex에서 GitHub 주소와 설치 요청을 받은 에이전트는 이 단계까지 설치 과정으로 수행합니다. 사용자가 Skill을 수동 등록하거나 폴더를 다시 열게 하지 않습니다. 다른 에이전트의 CLI 설치에는 필수 단계가 아닙니다. Skill 등록은 Dashboard 실행 승인이 아니며 `allow_implicit_invocation: false`를 유지합니다.
+
+설치 폴더로 `cd`하기 **전**의 Codex 프로젝트 루트(호스트의 프로젝트/작업 경로 또는 사용자가 지정한 경로)와 실제 저장소 루트를 각각 확정합니다. `git rev-parse --show-toplevel`은 저장소만 알려 주며 상위 Codex 프로젝트를 판별하지 못합니다. 현재 경로에서 임의로 상위 폴더를 고르지 않습니다. 루트가 불명확하면 후보 경로를 제시해 확인하고, 외부 경로 쓰기 권한이 없으면 필요한 등록 위치와 권한을 안내합니다. 권한 거부를 우회하거나 전역 Skill 경로에 대신 설치하지 않습니다.
+
+| 설치 구조 | 등록 위치와 방법 |
+| --- | --- |
+| A. 프로젝트 루트 = 저장소 | 저장소의 `.agents/skills/sm-dashboard` 원본을 그대로 확인. 추가 링크/복사 없음 |
+| B. 프로젝트 루트 아래 `script-manager-oss/` 저장소 | 프로젝트 루트의 `.agents/skills/sm-dashboard` → 저장소 원본. macOS/Linux는 상대 심볼릭 링크, Windows는 디렉터리 복사와 `script-manager-source.json` 원본 경로 기록 |
+
+확정한 **절대 프로젝트 경로**를 아래 인자에 넣고, 저장소 코드 루트에서 실행합니다. Windows에서는 실행 파일을 `.\.venv\Scripts\python.exe`로 바꿉니다. 표준 라이브러리만 사용하며 Job/API/운영 데이터는 건드리지 않습니다.
+
+```sh
+.venv/bin/python scripts/register_dashboard_skill.py --project-root "/absolute/project"
+.venv/bin/python scripts/register_dashboard_skill.py --project-root "/absolute/project" --check
+```
+
+등록 스크립트는 저장소가 해당 프로젝트 내부인지와 링크 경계를 검사하고 `mode`, `skill_path`, `source_path`, 두 루트를 반환합니다. 원본은 유지하며 기존 정상 링크 또는 변경 없는 자체 복사본은 재사용합니다. 기존 파일·다른 Skill·끊어진 링크·수정된/오래된 복사본은 덮어쓰거나 제거하지 않고 오류로 보고합니다. POSIX에서 링크 권한이 거부되어도 복사로 자동 우회하지 않습니다. Windows 복사는 관리자/Developer Mode의 링크 권한을 요구하지 않는 선택이지만 실제 Windows Codex 검색은 별도 실검증 대상입니다. 복사본은 스냅샷이므로 원본 업데이트 시 자동 동기화하지 않습니다. 충돌 경로를 사용자가 검토하기 전에는 교체하지 않습니다.
+
+[공식 Codex Skill 탐색 규칙](https://learn.chatgpt.com/docs/build-skills#where-codex-loads-local-skills)에 따르면 CWD부터 저장소 루트까지의 `.agents/skills`를 탐색하고 Skill 디렉터리의 심볼릭 링크를 따라갑니다. 프로젝트 루트에서 시작한 세션이 임의의 하위 저장소까지 탐색한다고 가정하지 않습니다. 공식 문서는 Skill 변경 자동 감지도 설명하지만, 호스트·버전별 반영 성공은 실제 확인해야 합니다.
+
+설치 에이전트는 등록 후 현재 호스트가 제공하는 Skill 목록/선택기에서 `sm-dashboard`의 경로를 확인합니다. 지원되는 목록 새로고침이 있으면 사용하되, 없는 명령/API를 만들거나 전역 설정을 바꾸지 않습니다. [Codex App Server](https://learn.chatgpt.com/docs/app-server#api-overview)를 직접 사용하는 클라이언트는 **현재 세션을 제공하는 서버**의 `skills/list`에 `cwds: [프로젝트 절대 경로]`, `forceReload: true`를 전달해 다시 검색할 수 있습니다. 이는 runner CLI가 아니며 별도 서버에서 조회한다고 현재 앱의 캐시가 갱신되는 것은 아닙니다. 해당 기능이 노출되지 않은 호스트에서 임의의 서버 관리·재시작을 시도하지 않습니다.
+
+새 Codex 세션 검증은 같은 프로젝트 루트에서 자동 검색된 Skill 경로와 명시적 호출 정책을 확인하며, 서비스를 실행할 필요는 없습니다. `--check` 성공과 파일 직접 읽기는 검색 성공의 증거가 아닙니다. 새 세션 검색과 설치 중 세션의 자동 반영은 별개입니다. 현재 세션에서 등록이 보이지 않고 지원되는 새로고침도 사용할 수 없다면 “등록 검증 완료, 현재 세션 자동 반영 미확인”으로 보고합니다. 목록 접근이나 새 세션 검증 자체가 불가능하면 “등록 검증 완료, Codex 자동 검색 미검증”으로 보고합니다. 명시적 Dashboard 요청 시에는 원본 Skill을 직접 읽어 수행할 수 있으며 폴더 재열기를 정상 설치 절차로 요구하지 않습니다. 실제 호스트별 결과는 [검증 기록](docs/validation.md)을 확인합니다.
+
 ## 3. 네트워크 없는 합성 Job 한 번 실행
 
 새 설치의 list가 비어 있는지 확인한 뒤 진행합니다. 기존 hello-output이 있으면 get으로 확인하고 멈추며, 덮어쓰기·삭제·재실행하지 않습니다. POSIX에서는 아래 순서를 사용합니다.
@@ -157,6 +183,7 @@ run-dashboard는 기존 서버의 실행 클라이언트이고 시작 명령이 
 | --- | --- |
 | 문서/소스/CLI help 읽기, 안전한 새 설치 경로 선택 | 기존 폴더/Job/Schedule 덮어쓰기·삭제 |
 | 새 venv와 명시된 런타임 의존성 설치 | 관리자 권한·OS 패키지·전역 환경 변경 |
+| 확정된 프로젝트 내부의 Dashboard Skill 등록·확인(기존 파일 보존) | 프로젝트 루트 불명확 시 확인, 쓰기 허용 범위 밖 경로의 권한 확보 |
 | list로 초기화, 합성 hello-output 등록·1회 실행·결과/HTML 확인 | Dashboard 서비스 시작·기존 프로세스 종료/재시작 |
 | Run ID·상태·로그·Output·실제 검증 플랫폼 보고 | 실제 Job 실행·외부 API 수집·자격증명 등록 |
 | 자신의 합성 검증 결과를 보존하고 위치 보고 | OS 예약 활성화/변경·SSH 배포/검증/롤백·보존 정리 |
