@@ -2,6 +2,32 @@
 
 Current public/security status and preserved installation checks: [public readiness](public-readiness.md). Focused CodeQL follow-up and alert handling criteria: [CodeQL triage](codeql-triage.md). The Phase 2A section below is historical; its no-hosting statements describe that phase only. Private registration and the Public transition happened later. Those historical platform results are not new verification of Windows, Linux, native schedules or real SSH/systemd.
 
+## v0.1.0 publication gate — 2026-11-14
+
+Reviewed source commit `730de25b09791a99532a8320f6d43b0986351eaf` on macOS ARM64. Reused the independent Python 3.13 installation/smoke, dependency audit, secret scans, full regression and browser results recorded below and in [public readiness](public-readiness.md); those suites and E2E checks were not repeated. Product code, tests and the supplied [Release Notes body](releases/v0.1.0.md) were not changed.
+
+### Native launchd evidence
+
+The historical full-suite result explicitly skipped all three `tests.test_native_launchd` tests; mocked scheduling and plist validation did not establish native application. The release task authorized the missing focused check. From this checkout, using the preserved installed CPython **3.13.18** environment, ran `SCRIPT_MANAGER_TEST_LAUNCHD=1 python -m unittest tests.test_native_launchd -v`: **3 passed, 0 skips/failures/errors, 67.091 seconds, exit 0**.
+
+| Existing native test | Actual scope verified |
+| --- | --- |
+| `test_interval_fires_then_switches_to_calendar_and_removes` | Real temporary LaunchAgent bootstrap/observation and matching plist; 60-second StartInterval invoked Runner to `succeeded`; calendar replacement loaded; removal observed unloaded and plist absent |
+| `test_multiple_native_agents_are_independent_and_share_run_guard` | Separate calendar/interval labels; real interval invocation records the expected schedule ID; updating/disabling/re-enabling/removing one preserves the other; kickstarted scheduled invocations respect a manual Run's shared lock; final registrations removed |
+| `test_register_invoke_verify_remove` | Legacy calendar registration loaded; real `launchctl kickstart` invoked Runner to `succeeded`; removal observed unloaded |
+
+These tests own isolated temporary roots and root-derived labels, use the current source and real OS transport, and clean up only their own registrations. No operational Job/Schedule, resident Dashboard or SSH target was operated. This establishes native application, interval firing and OS-invoked execution on this macOS ARM64 host. Calendar wall-clock firing at the configured weekday/time, sleep/wake/login/reboot persistence, other macOS versions and hostile-filesystem behavior were not tested. Windows native scheduling and real Linux/SSH/systemd remain unverified; Linux local scheduling remains unsupported. The earlier skip records remain historical, not retroactively passing results.
+
+### Security and publication decision
+
+GitHub's [checks for the reviewed SHA](https://github.com/nstgmg/script-manager-oss/actions/runs/43463243719) completed successfully for Python and JavaScript/TypeScript. Signed-in Security Overview still showed Private Vulnerability Reporting Enabled; Dependabot and secret scanning each showed **0 open alerts**. These observations do not prove every dependency or secret safe, notification delivery, non-admin reporting, mailbox monitoring, or detailed push-protection/update settings.
+
+Reconciled the preserved individual CodeQL disposition record with GitHub's current **66 Open / 90 Closed**: 80 prior False Positive dismissals + eight prior Won't Fix dismissals + two automatic fixes account for the 90 closed alerts. The 66 open findings comprise 44 remote-runtime, 17 shared-filesystem and five Windows findings, including Critical #154. They remain open because actual platform/alternate-path evidence is incomplete, not because all were proved false positives. Reviewed the existing root/identifier, fixed argv/XML and local filesystem guards against the unchanged runtime source; did not dismiss alerts, change scanning/security settings or repeat a full audit. See [current CodeQL follow-up](codeql-triage.md#release-gate-observation--2026-11-14).
+
+**Decision: no confirmed unresolved security issue that blocks this release was identified within the documented trusted local single-user scope.** This is a scoped release decision, not security certification or a zero-alert claim. Shared-filesystem caller/root tracing, Windows quoting/ACL/reparse verification and real SSH/Linux boundaries remain follow-up work. Public Dashboard exposure, multi-user use, untrusted Jobs and hostile concurrent filesystem replacement remain outside the safety contract. Existing remote execution/data-management limits and security operations follow-ups remain disclosed.
+
+Before documentation changes, local `main` and the observed remote `main` both pointed to the reviewed SHA, the worktree was clean, and the remote had no `v0.1.0` tag. The public Releases API returned an empty list; the signed-in Releases page also showed no published or draft entries. Initial sandbox DNS failure was an environment limitation; the remote check succeeded with approved network access. Final documentation-commit checks, exact tag target and publication outcome must be verified after the commit rather than inferred from this pre-publication record.
+
 ## v0.1.0 Release Notes review — 2026-11-14
 
 Reviewed the owner-supplied [Release Notes](releases/v0.1.0.md) against source commit `d3de2481a930d0c372cc9caad17506a06f8ea150`, README, INSTALL, UPDATE, capability/operations/Package documentation and existing validation records. No existing Release Notes path or naming convention was found; the supplied body is preserved in `docs/releases/v0.1.0.md`. README and UPDATE link to this preparation document while retaining the accurate unpublished-version status. VERSION remains `0.1.0`; no product code or existing implementation was changed.

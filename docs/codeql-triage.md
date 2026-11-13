@@ -24,6 +24,14 @@ The [CodeQL run for code commit eba8dcd](https://github.com/nstgmg/script-manage
 
 The #156 path still contains the preceding UTF-8 byte limit. An imprecise length-guard model is a possible explanation, not a verified diagnosis of CodeQL internals. The unchanged pattern's measured behavior and enforced limit are evidence for review, not grounds for an automatic False Positive dismissal. #156 remains open; no regex rewrite or analysis suppression was added to reduce the count. The documentation commit's exact-SHA analysis must still be checked separately in the task result.
 
+## Release gate observation — 2026-11-14
+
+The analysis/state narrative above describes the earlier code follow-up, before subsequent individual alert dispositions. Reused the preserved 2026-11-13 disposition ledger for commit `4ee1908083b7600b3f9bc03701d22daa7b812a66` and checked the signed-in GitHub list again: **66 Open / 90 Closed**. Of the original 154 remaining findings, 80 were individually dismissed as False Positive and eight as Won't Fix; 66 stayed open. The other two closed findings were the earlier automatic fixes #1/#155. #156 was subsequently dismissed as False Positive on the enforced pre-regex 200-byte guard; this does not imply a universal performance proof.
+
+Open follow-ups are 44 remote-runtime paths, 17 shared-filesystem utility findings (#5–#21), and five Windows findings (#42, #150–#152, #154). Critical #154 remains open pending Windows-native argument/XML evidence. Shared helpers need fuller caller-to-root and alternate-path tracing; real SSH/Linux and Windows ACL/reparse boundaries are unverified. No confirmed exploit was established by the preserved review, and these findings are not collectively declared false positives. No alert state or scanning setting was changed in the release task.
+
+Both CodeQL language checks for release-preparation SHA `730de25b09791a99532a8320f6d43b0986351eaf` [completed successfully](https://github.com/nstgmg/script-manager-oss/actions/runs/43463243719). Runtime source has not changed since the reviewed code follow-up. The scoped release decision and newly verified macOS native scheduling are recorded in [validation](validation.md#v010-publication-gate--2026-11-14). Native functional success does not resolve hostile-filesystem findings or verify another platform. A successful analysis is not a zero-alert result; check the final documentation SHA separately.
+
 ## Alert state policy
 
 1. A classification in this document is separate from GitHub's current open/fixed/dismissed state. Read the completed analysis for the exact pushed SHA and both configured languages. Never infer a count change from a local edit, queued workflow or one completed language.

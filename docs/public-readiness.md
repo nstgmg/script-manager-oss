@@ -4,7 +4,9 @@
 
 보안 제보는 [security@def-v.com](mailto:security@def-v.com) 또는 GitHub의 비공개 제보 절차, 일반 문의는 [oss@def-v.com](mailto:oss@def-v.com)을 사용하세요. 자세한 절차는 [SECURITY](../SECURITY.md#reporting), 설치는 [INSTALL](../INSTALL.md), CodeQL 기준 커밋 `9040b78`의 분류·최소 수정·경고 관리 기준은 [CodeQL 후속 조치](codeql-triage.md)를 따릅니다.
 
-공개 소스는 신뢰하는 로컬 단일 사용자가 검토한 Job을 실행하는 도구입니다. Dashboard의 공개 bind·프록시·포트 포워딩, 다중 사용자 제공, 비신뢰 Job 실행을 안전하다고 주장하지 않습니다. Windows·Linux 실제 설치, native 예약, 실제 SSH/systemd 미검증과 Linux 로컬 예약 미지원, 원격 required_env·표준 데이터 경로 등의 제한은 유지합니다. 아래의 과거 성공 기록을 새로운 플랫폼 검증으로 해석하지 마세요.
+공개 소스는 신뢰하는 로컬 단일 사용자가 검토한 Job을 실행하는 도구입니다. Dashboard의 공개 bind·프록시·포트 포워딩, 다중 사용자 제공, 비신뢰 Job 실행을 안전하다고 주장하지 않습니다. Windows·Linux 실제 설치, Windows native 예약, 실제 SSH/systemd 미검증과 Linux 로컬 예약 미지원, 원격 required_env·표준 데이터 경로 등의 제한은 유지합니다. macOS ARM64 launchd native 적용·interval 발화·해제는 2026-11-14의 [릴리스 전 최소 검증](validation.md#native-launchd-evidence)에서 기존 테스트 3개가 통과했습니다. Calendar의 지정 시각 발화나 재부팅·잠자기 복원까지 검증한 것은 아닙니다. 아래의 과거 성공 기록을 새로운 플랫폼 검증으로 해석하지 마세요.
+
+2026-11-14 릴리스 전 재확인에서는 PVR Enabled, Dependabot/secret scanning 각 Open 0건, CodeQL Open 66 / Closed 90건을 관찰했습니다. 기존 개별 분류와 열린 Critical #154를 포함한 잔여 검증 범위, 공개 차단 여부의 판단은 [CodeQL 현재 기록](codeql-triage.md#release-gate-observation--2026-11-14)과 [릴리스 검증](validation.md#security-and-publication-decision)에 구분합니다. 아래 운영 후속 항목은 완료로 바꾸지 않았습니다.
 
 ## 현재 운영 확인
 
