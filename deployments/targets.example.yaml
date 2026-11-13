@@ -1,0 +1,5 @@
+version: 1
+targets:
+  home-linux:
+    ssh_host: script-linux
+    root: /home/scriptmgr/script-manager

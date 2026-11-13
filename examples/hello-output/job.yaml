@@ -1,0 +1,9 @@
+version: 1
+id: hello-output
+name: Hello Output
+description: Offline synthetic records written to managed Output
+command: [python3, main.py]
+cwd: .
+env: {}
+timeout_seconds: 300
+schedules: []

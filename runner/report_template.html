@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'none'; img-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<title>@@TITLE@@ · Report</title>
+<style>
+:root{font:15px/1.6 system-ui,sans-serif;color:#172c40;background:#f0f4f8}*{box-sizing:border-box}body{margin:0}main{max-width:1500px;margin:auto;padding:32px}header,.panel{background:white;border:1px solid #d7e0e8;border-radius:12px;padding:24px;margin-bottom:18px}h1{margin:0;font-size:28px}h2{font-size:18px}p{margin:8px 0}.muted{color:#52677b}.toolbar{display:flex;gap:12px;align-items:end;flex-wrap:wrap;margin:16px 0}label{display:grid;gap:4px}input,select,button,textarea{font:inherit;border:1px solid #a8b9c8;border-radius:6px;padding:7px 10px}button{background:#f3f7fb;color:#193e60;cursor:pointer}button:disabled{opacity:.45;cursor:default}button:focus-visible,input:focus-visible{outline:3px solid #2c75b9}input[type=search]{width:min(320px,80vw)}.scroll{overflow:auto;max-height:65vh}table{border-collapse:collapse;width:100%;text-align:left}th,td{border-bottom:1px solid #d7e0e8;padding:10px;vertical-align:top;max-width:420px;overflow-wrap:anywhere}th{background:#eff5fa;position:sticky;top:0}th button{border:0;text-align:left;width:100%;padding:0}pre{white-space:pre-wrap;overflow-wrap:anywhere;margin:0}td pre{max-height:160px;overflow:auto}textarea{width:100%;height:260px}#breadcrumbs{display:flex;gap:6px;flex-wrap:wrap}#message{min-height:24px}#copy-panel{margin-top:16px}[hidden]{display:none!important}.actions{display:flex;gap:8px;flex-wrap:wrap}@media(max-width:700px){main{padding:12px}header,.panel{padding:16px}}
+</style></head><body><main>
+<header><p class="muted">SCRIPT MANAGER · OFFLINE REPORT</p><h1>@@TITLE@@</h1>
+<p>Job: @@JOB@@ · Run: @@RUN@@ · JSON: @@SOURCE@@</p>
+<p class="muted">보고서 생성: <time>@@TIME@@</time> · 저장된 데이터 기준이며 자동 갱신하지 않습니다.</p>
+<div class="actions"><button id="copy">전체 JSON 복사</button><button id="copy-manual">선택하여 복사</button><button id="csv-all">전체 CSV 내보내기</button><button id="csv-filtered">필터 결과 CSV 내보내기</button></div>
+<p id="message" role="status" aria-live="polite"></p>
+<section id="copy-panel" hidden><label>전체 원본 JSON — Ctrl+C / ⌘C로 복사<textarea id="copy-text" readonly spellcheck="false"></textarea></label><button id="copy-close">닫기</button></section>
+</header>
+<section class="panel"><h2>데이터 탐색</h2><div id="breadcrumbs" aria-label="데이터 경로"></div>
+<div class="toolbar"><label>전체 검색<input id="search" type="search" placeholder="중첩 값도 검색"></label><label>필터 열<select id="filter-key"><option value="">모든 열</option></select></label><label>포함할 값<input id="filter-value" type="search"></label><button id="reset">검색·정렬 초기화</button></div>
+<p id="count" role="status"></p><p id="scope" class="muted">CSV는 현재 탐색 위치의 전체/필터 결과를 내보냅니다. 중첩 값은 JSON 문자열입니다. 수식 시작 셀은 안전한 텍스트로 내보냅니다.</p>
+<div class="scroll"><table id="table"><thead id="head"></thead><tbody id="body"></tbody></table></div><pre id="scalar" hidden></pre>
+<div class="toolbar"><button id="prev">이전</button><span id="page"></span><button id="next">다음</button></div>
+<p class="muted">인터넷 연결 없이 이 파일만으로 작동합니다. 원본의 큰 정수는 전체 JSON 복사 시 그대로 보존되며, 표·CSV에서는 브라우저 숫자 정밀도가 적용됩니다.</p></section>
+<noscript>데이터 검색·복사·내보내기를 사용하려면 브라우저에서 JavaScript를 허용하세요.</noscript>
+</main><script id="report-data" type="application/json">@@PAYLOAD@@</script>
+<script>
+"use strict";
+const originalJSON = JSON.parse(document.getElementById("report-data").textContent);
+const rootData = JSON.parse(originalJSON);
+const el = id => document.getElementById(id);
+let locationPath = [], currentData = rootData, rows = [], columns = [], filtered = [], sortKey = null, direction = 1, page = 0;
+const PAGE_SIZE = 100, MAX_COLUMNS = 100;
+function isContainer(v) { return v !== null && typeof v === "object"; }
+function display(v) { return v === undefined ? "" : typeof v === "string" ? v : JSON.stringify(v); }
+function own(v, key) { return isContainer(v) && Object.hasOwn(v, key) ? v[key] : undefined; }
+function cellValue(row, key) { return row.kind === "fields" ? own(row.value,key) : key === "key" ? row.key : row.value; }
+function makeRows(value) {
+  if (Array.isArray(value)) return value.map((v, i) => ({key:String(i), value:v, kind:isContainer(v) && !Array.isArray(v) ? "fields" : "value"}));
+  if (isContainer(value)) return Object.keys(value).map(key => ({key, value:value[key], kind:"entry"}));
+  return [{key:"value", value, kind:"value"}];
+}
+function allColumns(values) {
+  const keys = new Set();
+  for (const row of values) {
+    if (row.kind === "fields") Object.keys(row.value).forEach(k => keys.add(k));
+    else { keys.add("key"); keys.add("value"); }
+  }
+  return [...keys];
+}
+function node(tag, text) { const result=document.createElement(tag); if (text !== undefined) result.textContent=text; return result; }
+function navigate(path) {
+  locationPath=path; currentData=rootData;
+  for (const key of path) currentData=own(currentData,key);
+  rows=makeRows(currentData); columns=allColumns(rows); sortKey=null; direction=1; page=0;
+  el("search").value=""; el("filter-value").value="";
+  el("filter-key").replaceChildren(node("option","모든 열")); el("filter-key").firstChild.value="";
+  columns.slice(0,MAX_COLUMNS).forEach(key => { const option=node("option",key); option.value=key; el("filter-key").append(option); });
+  el("filter-key").value="";
+  el("breadcrumbs").replaceChildren();
+  ["전체 JSON", ...path].forEach((label,index) => {
+    const button=node("button", label); button.onclick=()=>navigate(path.slice(0,index));
+    el("breadcrumbs").append(button);
+  });
+  update();
+}
+function compare(a,b) {
+  if (a === b) return 0;
+  if (a === undefined || a === null) return -1;
+  if (b === undefined || b === null) return 1;
+  return typeof a === "number" && typeof b === "number" ? a-b : display(a).localeCompare(display(b),undefined,{numeric:true});
+}
+function selectRows() {
+  const query=el("search").value.toLocaleLowerCase(), key=el("filter-key").value, filter=el("filter-value").value.toLocaleLowerCase();
+  return rows.filter(row => (!query || (row.key+" "+display(row.value)).toLocaleLowerCase().includes(query)) &&
+    (!filter || display(key === "" ? row.value : cellValue(row,key)).toLocaleLowerCase().includes(filter)))
+    .sort((a,b) => sortKey === null ? 0 : direction * compare(cellValue(a,sortKey),cellValue(b,sortKey)));
+}
+function valueCell(value, path) {
+  const td=node("td");
+  if (isContainer(value)) {
+    const button=node("button", (Array.isArray(value) ? "배열 " : "객체 ")+Object.keys(value).length+"개 탐색");
+    button.onclick=()=>navigate(path); td.append(button);
+  }
+  td.append(node("pre", display(value)?.slice(0,2000) || (value === "" ? '""' : "")));
+  return td;
+}
+function update() {
+  filtered=selectRows();
+  const pages=Math.max(1,Math.ceil(filtered.length/PAGE_SIZE)); page=Math.min(page,pages-1);
+  el("count").textContent="전체 "+rows.length+"건 · 필터 결과 "+filtered.length+"건 · 표시 "+(filtered.length ? page*PAGE_SIZE+1 : 0)+"–"+Math.min((page+1)*PAGE_SIZE,filtered.length)+
+    (columns.length > MAX_COLUMNS ? " · 화면은 처음 100개 열만 표시 (CSV는 모든 열 포함)" : "");
+  el("page").textContent=(page+1)+" / "+pages; el("prev").disabled=page===0; el("next").disabled=page>=pages-1;
+  el("head").replaceChildren(); el("body").replaceChildren();
+  el("scalar").hidden=isContainer(currentData); el("table").hidden=!isContainer(currentData);
+  if (!isContainer(currentData)) { el("scalar").textContent=display(currentData); return; }
+  const header=node("tr");
+  columns.slice(0,MAX_COLUMNS).forEach(key=>{
+    const th=node("th"), button=node("button",key+(sortKey===key ? direction===1 ? " ↑" : " ↓" : ""));
+    th.setAttribute("aria-sort",sortKey===key ? direction===1 ? "ascending" : "descending" : "none");
+    button.onclick=()=>{direction=sortKey===key ? -direction : 1;sortKey=key;page=0;update();}; th.append(button); header.append(th);
+  }); el("head").append(header);
+  for (const row of filtered.slice(page*PAGE_SIZE,(page+1)*PAGE_SIZE)) {
+    const tr=node("tr");
+    columns.slice(0,MAX_COLUMNS).forEach(key=>{
+      const path=[...locationPath];
+      if (Array.isArray(currentData) || isContainer(currentData)) path.push(row.key);
+      if (row.kind === "fields") path.push(key);
+      tr.append(valueCell(cellValue(row,key),path));
+    }); el("body").append(tr);
+  }
+}
+function csvCell(value) {
+  let text=display(value) ?? "";
+  // Spreadsheet formulas can execute when a CSV is opened. Export all dangerous prefixes as text.
+  if (/^[\s\u0000-\u001f]*[=+\-@]/.test(text) || /^[\t\r\n]/.test(text)) text="'"+text;
+  return '"'+text.replaceAll('"','""')+'"';
+}
+function csvText(values) {
+  const keys=allColumns(rows);
+  return "\uFEFF"+[keys.map(csvCell).join(","), ...values.map(row=>keys.map(key=>csvCell(cellValue(row,key))).join(","))].join("\r\n");
+}
+function downloadCSV(values) {
+  const blob=new Blob([csvText(values)],{type:"text/csv;charset=utf-8"}), url=URL.createObjectURL(blob), link=node("a");
+  link.href=url; link.download="report.csv"; document.body.append(link); link.click(); link.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1000); el("message").textContent=values.length+"건 CSV를 내보냈습니다.";
+}
+function manualCopy(attempt=true) {
+  el("copy-panel").hidden=false; el("copy-text").value=originalJSON; el("copy-text").focus(); el("copy-text").select();
+  let copied=false;
+  if (attempt) { try { copied=document.execCommand("copy"); } catch (_) {} }
+  el("message").textContent=copied ? "전체 JSON을 복사했습니다." : "선택된 전체 JSON을 Ctrl+C / ⌘C로 복사하세요.";
+}
+async function copyJSON() {
+  try {
+    if (!navigator.clipboard?.writeText) throw new Error("unavailable");
+    await navigator.clipboard.writeText(originalJSON); el("message").textContent="전체 JSON을 복사했습니다.";
+  } catch (_) { manualCopy(); }
+}
+el("copy").onclick=copyJSON; el("copy-manual").onclick=()=>manualCopy(false); el("copy-close").onclick=()=>{el("copy-panel").hidden=true;};
+el("csv-all").onclick=()=>downloadCSV(rows); el("csv-filtered").onclick=()=>downloadCSV(filtered);
+for (const id of ["search","filter-key","filter-value"]) el(id).addEventListener(id==="filter-key" ? "change" : "input",()=>{page=0;update();});
+el("reset").onclick=()=>navigate(locationPath); el("prev").onclick=()=>{page--;update();}; el("next").onclick=()=>{page++;update();};
+navigate([]);
+</script></body></html>
