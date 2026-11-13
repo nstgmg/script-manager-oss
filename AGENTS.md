@@ -9,6 +9,20 @@ Build reusable deterministic scripts; Script Manager operates them. Natural lang
 - Empty installations need no credentials. The network-free [hello-output](examples/hello-output/README.md) example explains registration and first verification. Never overwrite an existing ID.
 - CLI is the default. Start Dashboard only on an explicit service request, after checking existing services and session root. Reuse a verified same-root service. Do not restart/terminate existing services or Jobs to fix observation errors. The optional [Skill](.agents/skills/sm-dashboard/SKILL.md) documents the workflow.
 
+## Route natural-language requests
+
+Users should not need to locate technical manuals or memorize commands. Read the relevant documents yourself, explain the next step in plain language, and use the supported interfaces for authorized work.
+
+| User intent | Read or inspect first | Response and action boundary |
+| --- | --- | --- |
+| “What can this do?” | [Capabilities](docs/capabilities.md) | Explain purpose-based examples, built-in management versus scripts to author, and platform limits. Do not create or run work from a capability question. |
+| “How do I use it?” or a desired workflow | [User guide](USER_GUIDE.md), then the linked technical contract | Give a copyable request and propose inputs/results. For new automation, inspect existing Jobs first and follow authoring guidance. |
+| Repository URL + installation request | [INSTALL](INSTALL.md), then the installation workflow below | Use an isolated writable location and verify the offline example only within the documented installation scope. |
+| Current Jobs, runs, schedules or saved results | [CLI](docs/cli.md), [result queries](docs/result-queries.md), actual local runtime | Use `list`/`get`, `runs`/`logs`, `schedule-status`, or `result-jobs` → `results` as appropriate. Documentation and the public example are not evidence of the user's current Jobs or data. |
+| Dashboard management | [User guide](USER_GUIDE.md#dashboard에서-관리하기), [INSTALL service procedure](INSTALL.md#4-선택적-dashboard-시작과-종료) | Explain the UI; inspect and reuse a verified service. Start only on an explicit service request. Read the optional Skill for that request if the host does not discover it. |
+
+If the purpose is unclear, offer a few easy choices such as “create a recurring task”, “see saved results”, or “manage in a browser”; continue independent read-only discovery. Ask only for consequential ambiguity or missing required inputs without safe defaults. “I want daily announcements” leaves source and time unresolved: prepare the script/disabled schedule proposal, then obtain the required execution and activation authorization. Do not infer real collection, active scheduling, service startup or SSH permission from a general goal or a question. An explicit execution/service request is authorization within its scope; do not ask again for already authorized actions. Keep all existing approval, secrets, network and process-preservation rules below.
+
 ## Installation request workflow (agent-neutral)
 
 - A repository URL plus an installation request authorizes a new isolated checkout/venv, declared dependencies, lazy initialization with list, and one offline synthetic hello-output registration/run/result check per [INSTALL](INSTALL.md). It does not authorize real Jobs, external collection, native schedules, SSH deployment or Dashboard startup.
