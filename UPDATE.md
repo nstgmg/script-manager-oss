@@ -4,6 +4,8 @@ Script Manager의 제품 버전은 루트 [VERSION](VERSION)에 `MAJOR.MINOR.PAT
 
 공식 배포 여부와 변경 내용은 [nstgmg/script-manager-oss Releases](https://github.com/nstgmg/script-manager-oss/releases)에서 확인합니다. 이 문서는 에이전트가 수행하는 수동 절차이며 자동 업데이트·자동 재시작 기능은 없습니다. Tag와 Release 발행은 저장소 관리자의 별도 작업입니다.
 
+[v0.1.0 Release Notes](docs/releases/v0.1.0.md)는 첫 공식 릴리스의 발행 준비용 본문입니다. [검토 기록](docs/validation.md#v010-release-notes-review--2026-11-14)과 함께 확인하되, 저장소에 본문이 있다는 사실만으로 안정 Release가 존재한다고 판단하지 않습니다.
+
 ## 설치와 업데이트 요청 구분
 
 처음 설치는 [INSTALL](INSTALL.md)을 따릅니다. 현재 README/INSTALL의 기본 clone은 `main` 소스를 받는 개발 소스 설치이며, Release 발행 전에는 안정 버전 설치라고 안내하지 않습니다. 공식 Release가 생기면 새 설치도 선택한 안정 Release의 Tag·커밋과 VERSION을 확인한 뒤 해당 소스로 INSTALL 절차를 수행합니다. 기존 설치에는 새 설치용 초기화·합성 Job 등록을 반복하지 않습니다.

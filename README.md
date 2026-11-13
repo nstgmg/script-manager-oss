@@ -35,6 +35,8 @@
 
 루트 [VERSION](VERSION)의 `0.1.0`은 **예정된 첫 배포 버전**이며, 아직 공식 `v0.1.0` Release를 발행하지 않았습니다. 제품 버전 `X.Y.Z`는 공식 GitHub Release Tag `vX.Y.Z`와 대응합니다. VERSION만으로 공식 배포 여부를 판단하지 않습니다. 현재 기본 clone은 `main` 개발 소스 설치이며, Release가 없을 때 최신 `main`을 안정 버전으로 간주하지 않습니다.
 
+[v0.1.0 Release Notes](docs/releases/v0.1.0.md)를 발행 준비용으로 저장했습니다. 문서 검토 범위와 기존 검증의 한계는 [검증 기록](docs/validation.md#v010-release-notes-review--2026-11-14)에 있습니다. 이 문서 저장은 Tag 생성이나 Release 발행을 뜻하지 않습니다.
+
 처음 설치는 [INSTALL](INSTALL.md), 기존 설치의 버전 확인·업데이트·실패 시 코드 복구는 [UPDATE](UPDATE.md)를 따릅니다. 같은 프로젝트에서 에이전트에게 요청하세요.
 
 > Script Manager 업데이트 확인해 줘.
