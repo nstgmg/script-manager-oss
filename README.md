@@ -1,103 +1,107 @@
 # Script Manager
 
-반복해서 하는 일을 에이전트에게 말로 설명하세요. 에이전트가 재사용 가능한 스크립트를 만들고, Script Manager가 작업(Job)·실행 기록·저장 결과·OS 예약을 관리합니다. **에이전트는 자동화를 만들고, Script Manager는 실행합니다.**
+**에이전트로 반복 업무를 자동화하고, 만들어 둔 스크립트는 Script Manager로 실행·관리하세요.**
 
-예를 들어 다음과 같은 일을 맡길 수 있습니다.
+Script Manager는 내 컴퓨터에서 자동화 작업과 실행 기록, 저장 결과, 예약 일정을 관리하는 무료 오픈소스 도구입니다. 코드를 몰라도 Codex나 Claude Code 같은 코딩 에이전트에게 원하는 일을 설명하면, 에이전트가 재사용할 스크립트를 작성해 작업으로 등록할 수 있습니다.
 
-- 정한 사이트나 API에서 지원사업 공고를 모아 정기적으로 저장하기
-- 반복해서 받는 CSV·JSON 파일을 정리하고 여러 작업의 결과를 비교하기
-- 만들어 둔 작업을 실행하고 실패 원인을 로그로 확인하기
-- 저장된 결과를 자연어로 찾아보고, 서버 없이 열리는 HTML 보고서로 만들기
+평소처럼 에이전트에게 자연어로 요청하면서, 처리 방법이 정해진 반복 실행은 일반 프로그램과 OS 예약에 맡깁니다. 불필요한 모델 호출과 실행 대기 시간을 줄이는 것이 목적입니다. **에이전트는 자동화를 만들고 결과를 해석하며, Script Manager는 등록된 작업을 실행하고 기록합니다.**
 
-수집·정리·비교 같은 업무 로직은 목적에 맞게 에이전트가 작성합니다. 특정 사이트 수집기, 지원사업 데이터, 알림 연동이 기본 탑재된 것은 아닙니다. 배포 소스에는 개인 Job·운영 데이터가 없고, 네트워크 없는 합성 예제만 포함합니다. [할 수 있는 일과 한계](docs/capabilities.md)에서 구분을 확인할 수 있습니다.
+## 이렇게 사용합니다
 
-## 에이전트에게 설치 맡기기
+지원사업 공고 수집을 예로 들어보겠습니다. 파일 정리, CSV·JSON 변환, 여러 작업의 결과 비교처럼 반복되는 다른 업무에도 같은 방식으로 활용할 수 있습니다.
 
-사용자 소유 프로젝트 폴더를 만들고, 그 폴더에서 파일·터미널을 다룰 수 있는 코딩 에이전트에 다음을 전달하세요.
+### 1. 자연어로 작업 만들기
 
-> https://github.com/nstgmg/script-manager-oss 를 이 프로젝트 폴더에 설치해 줘.
+설치한 프로젝트에서 에이전트에게 요청하세요.
 
-에이전트는 [INSTALL](INSTALL.md)과 [AGENTS](AGENTS.md)에 따라 새 가상환경과 의존성을 준비하고, 합성 예제를 한 번 실행해 결과와 HTML을 확인합니다. 에이전트가 저장소 지침을 자동으로 읽지 못하면 두 문서를 읽도록 요청하세요. Git·지원 Python·다운로드 권한 등이 없으면 필요한 준비를 안내합니다. 기존 파일은 보존하며, 설치 요청으로 실제 데이터 수집·예약 활성화·Dashboard 시작·SSH 배포를 수행하지 않습니다.
+> 기업마당과 K-Startup에서 모집 중인 지원사업 공고를 수집하는 작업을 만들어 줘. 제목·마감일·원문 주소를 저장하고 싶어.
 
-설치 후에도 같은 프로젝트에서 자연어로 요청하면 됩니다. 별도 채팅 서버나 LLM API는 필요하지 않으며, 자연어 해석과 스크립트 작성은 사용 중인 에이전트가 담당합니다.
+에이전트가 수집 범위와 필요한 접근 권한을 확인하고, 목적에 맞는 스크립트를 작성해 작업(Job)으로 등록합니다. 실행을 요청하면 결과를 확인하고 필요한 부분을 수정할 수도 있습니다. 특정 사이트 수집기나 업무별 완성 스크립트가 기본 탑재된 것은 아닙니다.
 
-| 이렇게 요청하세요 | 다음에 진행할 일 |
+### 2. 네 가지 방식으로 실행하기
+
+| 실행 방식 | 사용 예시 |
 | --- | --- |
-| “이걸로 뭘 할 수 있어?” | 목적별 활용 사례와 지원 범위 안내 |
-| “매일 지원사업 공고를 모으고 싶어.” | 수집 대상·결과·시각을 정하고 Job과 예약 준비 |
-| “만든 작업들과 실행 결과를 보여줘.” | 실제 Job·실행 기록·저장 결과 조회 |
-| “저장된 결과를 HTML 보고서로 만들어 줘.” | 재수집 없이 기존 JSON을 HTML로 변환 |
-| “Dashboard를 시작해서 관리 화면을 열어 줘.” | 기존 서비스 확인 후 재사용 또는 승인된 시작 |
+| **자연어 요청** | 에이전트에게 “지원사업 공고 수집 작업을 실행해 줘.”라고 요청합니다. |
+| **OS 예약** | “검증한 작업을 매일 오전 9시에 실행하도록 예약해 줘.”라고 요청하고 설정을 확인해 적용합니다. 이후에는 OS가 실행합니다. |
+| **CLI** | 터미널에서 `.venv/bin/python -m runner run JOB_ID --wait`로 실행합니다. |
+| **Dashboard** | 로컬 관리 화면에서 등록한 작업을 선택해 실행합니다. |
 
-사용자는 명령을 외울 필요가 없습니다. [사용자 가이드](USER_GUIDE.md)는 요청 예시와 필요한 입력·승인, [기능 안내](docs/capabilities.md)는 제품 기능과 새 스크립트가 필요한 일을 설명합니다.
+어느 방식이든 등록된 스크립트를 실행합니다. CLI 예시의 `JOB_ID`는 실제 작업 ID로 바꾸며, Windows 명령은 [CLI 문서](docs/cli.md)를 참고하세요. Dashboard가 필요하면 에이전트에게 “이 프로젝트의 Dashboard를 시작해서 접속 주소를 알려줘.”라고 요청하면 됩니다. 기존 서비스를 확인한 뒤 재사용하거나 시작합니다.
 
-## 버전과 업데이트
+**OS 예약 실행에는 에이전트 개입이나 반복적인 모델 호출이 필요하지 않습니다.** 자연어로 작업 생성·실행·분석을 요청하면 사용 중인 에이전트의 모델 호출이 발생합니다. CLI·Dashboard·OS 예약을 통한 스크립트 실행 자체에는 AI 추론이 필요하지 않지만, 스크립트가 별도로 AI API를 호출하면 해당 비용이 발생할 수 있습니다.
 
-루트 [VERSION](VERSION)의 `0.1.0`은 **예정된 첫 배포 버전**이며, 아직 공식 `v0.1.0` Release를 발행하지 않았습니다. 제품 버전 `X.Y.Z`는 공식 GitHub Release Tag `vX.Y.Z`와 대응합니다. VERSION만으로 공식 배포 여부를 판단하지 않습니다. 현재 기본 clone은 `main` 개발 소스 설치이며, Release가 없을 때 최신 `main`을 안정 버전으로 간주하지 않습니다.
+예약은 지원 OS에서 컴퓨터가 켜져 있고 작업을 실행할 수 있는 상태여야 합니다. 전원·로그인·절전 설정의 영향을 받으며, 놓친 실행의 재처리를 보장하지 않습니다. OS별 지원과 검증 범위는 아래에서 확인하세요.
 
-[v0.1.0 Release Notes](docs/releases/v0.1.0.md)를 발행 준비용으로 저장했습니다. 문서 검토 범위와 기존 검증의 한계는 [검증 기록](docs/validation.md#v010-release-notes-review--2026-11-14)에 있습니다. 이 문서 저장은 Tag 생성이나 Release 발행을 뜻하지 않습니다.
+### 3. 저장된 결과로 다음 작업 이어가기
 
-처음 설치는 [INSTALL](INSTALL.md), 기존 설치의 버전 확인·업데이트·실패 시 코드 복구는 [UPDATE](UPDATE.md)를 따릅니다. 같은 프로젝트에서 에이전트에게 요청하세요.
+스크립트가 파일로 저장한 결과를 에이전트가 다시 읽고 분석·가공할 수 있습니다.
 
-> Script Manager 업데이트 확인해 줘.
+> 오늘 수집한 공고 중 마감이 가까운 것들을 보여줘.
 
-이 요청은 버전·Release Notes·업데이트 계획 확인과 안내만 수행합니다. 적용하려면 “Script Manager 업데이트해 줘”라고 명시하세요. 에이전트는 안전 점검 후 승인 범위에서만 적용하며, 로컬 수정·비호환 변경·실행 중 작업과 충돌하면 덮어쓰지 않고 안내합니다. Job·예약·운영 데이터·설정·비밀정보를 보존하고 기존 Dashboard Skill 등록도 확인합니다. 자동 업데이트·자동 재시작은 하지 않습니다. 안정 Release가 없으면 적용할 안정 업데이트가 없다고 안내합니다.
+> 저장된 공고에서 우리 사업에 적합한 후보를 추려 비교표와 HTML 보고서로 만들어 줘. 새로 수집하지는 마.
+
+이미 확보한 자료로 요약, 비교표, 보고서, 글의 초안 등을 만들 수 있습니다. 같은 자료를 쓰기 위해 수집 작업을 다시 실행할 필요는 없습니다. 저장된 결과의 수집 시각을 함께 확인하며, 저장 당시의 모집 상태가 현재도 유효하다는 뜻은 아닙니다. 기본 HTML 변환은 Script Manager가 제공하고, 업무에 맞는 해석과 맞춤 산출물은 에이전트나 별도 스크립트가 담당합니다.
+
+더 많은 요청 예시는 [사용자 가이드](USER_GUIDE.md)와 [할 수 있는 일과 한계](docs/capabilities.md)를 참고하세요.
 
 ## 주요 기능
 
-- 파일 기반 Job 정의와 검증, 한 Job의 여러 Schedule 관리
-- 수동 CLI 실행, 상태·stdout/stderr·Output 확인, 저장 결과 필터 조회
-- JSON을 서버 없이 여는 독립 HTML 보고서로 변환
-- 선택적 loopback Dashboard, immutable Package와 보존 정책
-- 명시적으로 승인한 Linux systemd user SSH 배포 워크플로우 (제한·미검증 범위 있음)
+- **작업 등록과 관리:** 작업 설정을 파일로 저장·검증하고, 실행할 명령, 필요한 환경, 제한 시간, 실행 시 입력값을 관리합니다.
+- **여러 예약 관리:** 하나의 작업에 요일·시각별 또는 일정 간격의 예약(Schedule)을 여러 개 둘 수 있습니다. 작업은 무엇을 실행할지, 예약은 언제 실행할지를 정합니다.
+- **실행 기록과 로그:** 성공·실패 상태, 실행 중 출력과 오류 로그, 저장 결과를 확인합니다.
+- **저장 결과 검색:** 다시 실행하지 않고 날짜·키워드·상태·출처로 기존 결과를 찾습니다.
+- **HTML 보고서:** 저장된 JSON을 서버 없이 열리는 HTML로 변환해 검색·필터·정렬하고 CSV로 내보냅니다.
+- **선택적 Dashboard:** 내 컴퓨터의 브라우저 화면에서 작업·실행·예약·로그·결과를 관리합니다. 스크립트 작성과 수정은 에이전트가 담당합니다.
+- **내보내기와 보존 관리:** 작업을 변경되지 않는 ZIP 묶음(Package)으로 내보내고, 보존 정책에 따라 정리 대상을 미리 확인하거나 휴지통의 실행 결과를 복구합니다. Package 생성·다운로드와 보존 관리는 Dashboard 또는 HTTP API를 사용하며 전용 Runner CLI는 없습니다.
 
-DB, LLM API, Node, 프런트엔드 빌드는 기본 실행에 필요 없습니다. Job은 사용자 권한의 임의 프로그램이며 sandbox가 아닙니다. 신뢰하는 코드만 실행하세요.
+Linux 서버의 SSH 배포 계획·배포·검증·롤백 기능도 구현되어 있으나 실서버 미검증과 기능 제약이 있습니다. 실제 SSH 작업은 명시적 승인 후 수행하며, [Package·원격 제한](docs/packages.md#current-remote-limitations)을 먼저 확인해야 합니다.
 
-## 빠른 시작
+## 처음 한 번 설치하기
 
-Git과 venv/pip 포함 유지보수 중인 Python(3.13 권장; 코드 최소 3.9, 3.9 자체는 EOL)을 준비하고 새 사용자 소유 폴더에서 시작합니다. 저장소는 Public이며 HTTPS 소스 다운로드에는 GitHub 로그인이 필요하지 않습니다. 아래는 macOS/POSIX 셸 절차입니다. Windows PowerShell과 Linux의 상세 절차·지원 범위·오류 해결은 [INSTALL.md](INSTALL.md)를 따르세요.
+**Script Manager는 처음 한 번만 설치합니다. 새로운 자동화 작업을 만들 때마다 다시 설치할 필요가 없습니다.** 설치 후에는 같은 프로젝트에서 작업을 계속 추가하고 관리하세요.
 
-```sh
-git clone https://github.com/nstgmg/script-manager-oss.git script-manager-oss
-cd script-manager-oss
-python3 -m venv .venv
-.venv/bin/python -m pip install --upgrade pip setuptools
-.venv/bin/python -m pip install -r requirements.txt
-.venv/bin/python -m runner --help
-.venv/bin/python -m runner list
-```
+사용자 소유 프로젝트 폴더를 만들고, 그 폴더의 파일과 터미널을 다룰 수 있는 Codex·Claude Code 같은 에이전트에게 다음을 전달하세요.
 
-초기 목록이 비어 있고 hello-output이 없을 때만 합성 예제를 등록하고 한 번 실행합니다. create --file은 기본 소스도 생성하므로 예제 복사가 필요합니다.
+> [https://github.com/nstgmg/script-manager-oss](https://github.com/nstgmg/script-manager-oss) 를 이 프로젝트 폴더에 설치해 줘. INSTALL.md와 AGENTS.md를 읽고 진행해 줘.
 
-```sh
-.venv/bin/python -m runner create hello-output --file examples/hello-output/job.yaml
-cp examples/hello-output/main.py examples/hello-output/README.md jobs/hello-output/
-.venv/bin/python -m runner get hello-output
-.venv/bin/python -m runner run hello-output --wait
-.venv/bin/python -m runner results hello-output --keyword Alpha --source synthetic --status ready
-```
+에이전트가 설치 지침에 따라 필요한 환경을 준비하고, 외부 접속 없이 동작하는 [설치 확인용 예제](examples/hello-output/README.md)를 한 번 실행해 [결과와 HTML을 확인](INSTALL.md#3-네트워크-없는-합성-job-한-번-실행)합니다. 설치 요청만으로 실제 자료 수집, 예약 활성화, Dashboard 시작, SSH 배포를 수행하지 않습니다.
 
-반환된 Run ID를 보존하고 succeeded, exit_code=0, stdout/stderr와 Output 두 레코드를 확인합니다. Alpha 필터는 total=1이어야 합니다. [설치의 결과 확인 절차](INSTALL.md#3-네트워크-없는-합성-job-한-번-실행)와 [예제 계약](examples/hello-output/README.md)을 참조하세요. API 키·외부 수집·예약·Dashboard가 필요 없습니다. 기존 Job을 덮어쓰지 않습니다.
+Git, Python, 소스와 의존성을 내려받을 네트워크 접근이 필요합니다. 새 환경에는 Python 3.13을 권장합니다. 코드 최소 버전은 3.9지만, 유지보수가 종료된 3.9는 새 설치에 권장하지 않습니다. 기본 실행에는 별도 DB, LLM API 키, Node나 프런트엔드 빌드가 필요 없습니다. 개별 작업에 필요한 도구와 라이브러리는 별도로 준비합니다.
 
-## 플랫폼과 안전 경계
+직접 설치하려면 [INSTALL.md](INSTALL.md)의 OS별 절차를 따르세요. 안정 버전은 [공식 Release](https://github.com/nstgmg/script-manager-oss/releases)에서 선택하고, 해당 Tag·커밋과 [VERSION](VERSION)을 확인합니다. 기본 `main` 브랜치의 소스는 개발 중 변경을 포함할 수 있습니다.
 
-macOS ARM64 / Python 3.13.18에서 독립 설치와 CLI·수동 실행·저장 결과·HTML·Dashboard를 검증했습니다. 기존 Python 3.9.6 기록도 보존합니다. Windows는 구현·모의 테스트, Linux 로컬 수동 기능은 구현 상태이며 실제 설치는 미검증입니다. Linux 로컬 예약은 미지원입니다. macOS launchd/Windows Task Scheduler의 native 적용은 이번 검증에서 수행하지 않았습니다. 자세한 [지원 표](INSTALL.md#지원-범위와-사전-준비)와 [검증 기록](docs/validation.md)을 확인하세요.
+기존 설치의 업데이트는 재설치 대신 [UPDATE.md](UPDATE.md)를 따릅니다. 에이전트에게 “Script Manager 업데이트 확인해 줘.”라고 하면 변경 내용과 계획을 안내하고, “Script Manager 업데이트해 줘.”라고 명시하면 안전 점검 후 적용합니다. 기존 작업·예약·데이터·로컬 수정을 보존하며 자동 업데이트나 자동 재시작은 하지 않습니다.
 
-실제 SSH/systemd 서버는 미검증입니다. 원격 required_env는 project root 전달 누락으로 실행에 실패하고, 로컬 표준 데이터 경로·보고서·로그/결과 동기화도 동일하게 제공되지 않습니다. verified는 업무 실행 성공이 아닙니다. [Package·SSH 제한](docs/packages.md)을 먼저 읽으세요.
+## 지원 OS와 검증 상태
 
-Dashboard는 사용자의 명시적 서비스 요청 후에만 시작하며 loopback 단일 사용자용입니다. 신뢰하는 로컬 사용자가 검토한 Job만 실행하세요. 공개 저장소라는 사실은 Dashboard의 인터넷 공개나 비신뢰 Job의 안전한 실행을 뜻하지 않습니다. 시작·기존 서비스 확인·Ctrl+C 종료는 [INSTALL](INSTALL.md#4-선택적-dashboard-시작과-종료)에 있습니다. Package·Lifecycle·복구용 전용 Runner CLI는 없습니다.
+아래는 [최신 검증 기록](docs/validation.md#v010-publication-gate--2026-11-14)을 반영한 범위입니다. 구현되어 있다는 사실과 실제 환경에서 검증했다는 사실을 구분합니다.
 
-jobs/, runtime/, workspace/, reports/는 운영 데이터이며 Git에서 제외합니다. --root는 데이터 경로를 선택하는 전역 옵션입니다. 비밀은 사용자가 루트 .env에 직접 등록하고 Job의 required_env에 이름만 선언합니다. 에이전트는 실제 값을 읽지 않습니다. [SECURITY](SECURITY.md)를 확인하세요. 보안 취약점은 [SECURITY.md의 비공개 제보 절차](SECURITY.md#reporting)를 따르세요.
+| 범위 | macOS | Windows | Linux |
+| --- | --- | --- | --- |
+| CLI·수동 실행·저장 결과·HTML·Dashboard | ARM64 / Python 3.13.18에서 독립 설치와 주요 동작 검증 | 구현·모의 테스트, 실제 설치·실행 미검증 | 구현, 실제 설치·실행 미검증 |
+| 로컬 OS 예약 | launchd 실제 등록·간격 실행·OS를 통한 작업 실행·변경·제거 검증 | Task Scheduler 구현·모의 테스트, 실환경 미검증 | 미지원 |
+| SSH 배포 대상 | 미지원 | 미지원 | systemd user 구현, 실서버 미검증·기능 제약 있음 |
 
-## 문의·협업
+macOS 예약의 지정 요일·시각 도달에 따른 실행, 절전 복귀·로그인·재부팅 후 유지 여부는 검증하지 않았습니다. 기록에 없는 macOS·Python 버전이나 Intel Mac까지 검증한 것은 아닙니다. 과거 Python 3.9.6 기록과 상세 조건은 [검증 기록](docs/validation.md)에 보존되어 있습니다.
 
-일반 문의·기여·협업·라이선스 문의는 [oss@def-v.com](mailto:oss@def-v.com)으로 보내세요. 보안 취약점은 [security@def-v.com](mailto:security@def-v.com) 또는 활성화된 GitHub Private Vulnerability Reporting으로 비공개 제보하세요. 공개 GitHub Issue에 취약점 세부 정보를 게시하지 말고 [SECURITY.md](SECURITY.md#reporting)를 따르세요.
+원격 Linux에서는 `required_env`를 선언한 작업의 환경 구성이 실패하는 알려진 제약이 있습니다. 로컬의 표준 데이터 경로 제공, 보고서 생성, 로그·결과 동기화도 동일하게 지원되지 않습니다. 배포의 `verified` 상태는 업무 실행 성공을 뜻하지 않습니다. [원격 제한](docs/packages.md#current-remote-limitations)을 확인하세요.
 
-## 문서
+작업은 **사용자의 OS 권한으로 실행**되며 코드를 격리하는 보안 환경이 아닙니다. 신뢰하는 로컬 단일 사용자가 검토한 코드만 실행하세요. Dashboard는 같은 컴퓨터에서만 접속하는 관리 화면이며 인터넷 공개나 다중 사용자 운영을 위한 서비스가 아닙니다. 시작·종료 절차는 [설치 문서](INSTALL.md#4-선택적-dashboard-시작과-종료)에 있습니다.
 
-- [무엇을 할 수 있나](docs/capabilities.md), [자연어로 사용하는 가이드](USER_GUIDE.md)
-- [설치·에이전트 온보딩·문제 해결](INSTALL.md), [버전·업데이트](UPDATE.md), [에이전트 지침](AGENTS.md), [스크립트 작성](docs/script-authoring.md)
-- [CLI](docs/cli.md), [운영](docs/operations.md), [파라미터](docs/run-parameters.md), [결과 조회](docs/result-queries.md), [HTML](docs/html-reports.md)
-- [Package·배포](docs/packages.md), [보존 정책](docs/phase3-lifecycle.md), [기여·테스트](CONTRIBUTING.md), [공개 준비 검증](docs/public-readiness.md)
+작업과 운영 데이터(`jobs/`, `runtime/`, `workspace/`, `reports/`)는 Git에서 제외합니다. `--root`는 데이터를 보관할 경로를 고르는 옵션입니다. 비밀값은 사용자가 루트 `.env`에 직접 등록하고 작업의 `required_env`에는 이름만 선언하며, 에이전트는 실제 값을 읽지 않습니다. 배포 소스에는 개인 작업·운영 데이터·외부 수집물이 포함되지 않습니다. 자세한 경계는 [보안 정책](SECURITY.md)을 참고하세요.
+
+## 문서와 Release
+
+- [v0.1.0 Release](https://github.com/nstgmg/script-manager-oss/releases/tag/v0.1.0) · [Release Notes](docs/releases/v0.1.0.md) · [전체 Releases](https://github.com/nstgmg/script-manager-oss/releases)
+- [사용자 가이드](USER_GUIDE.md) · [할 수 있는 일과 한계](docs/capabilities.md)
+- [설치·문제 해결](INSTALL.md) · [버전·업데이트](UPDATE.md)
+- [에이전트 지침](AGENTS.md) · [스크립트 작성](docs/script-authoring.md)
+- [CLI](docs/cli.md) · [운영](docs/operations.md) · [실행 입력](docs/run-parameters.md)
+- [결과 조회](docs/result-queries.md) · [HTML 보고서](docs/html-reports.md)
+- [Package·배포](docs/packages.md) · [보존 정책](docs/phase3-lifecycle.md)
+- [기여·테스트](CONTRIBUTING.md) · [검증 기록](docs/validation.md) · [공개 준비 검증](docs/public-readiness.md)
+
+일반 문의·기여·협업·라이선스 문의: [oss@def-v.com](mailto:oss@def-v.com). 보안 취약점은 [security@def-v.com](mailto:security@def-v.com) 또는 GitHub Private Vulnerability Reporting으로 비공개 제보하세요. 공개 Issue에 세부 정보를 게시하지 말고 [보안 제보 절차](SECURITY.md#reporting)를 따르세요.
 
 자체 코드·문서는 MIT입니다. [LICENSE](LICENSE)와 [제3자 고지](THIRD_PARTY_NOTICES.md)를 보존하세요. 런타임 바이너리·개인 데이터·외부 수집물은 배포하지 않습니다.
