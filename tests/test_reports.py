@@ -18,6 +18,34 @@ from runner.reports import MAX_SOURCE_BYTES, Reports, destination, render_html, 
 from runner.store import Store, default_job
 
 
+class ReportFilenameTests(unittest.TestCase):
+    def test_allowed_names_and_utf8_byte_boundary(self):
+        names = ["a.html", "report.html", "한글 보고서.html", "a b.html", "a..b.html",
+                 "a\u00a0b.html", "a" * 195 + ".html", "가" * 65 + ".html"]
+        for filename in names:
+            with self.subTest(filename=filename):
+                settings = {"filename": filename}
+                self.assertIs(validate_report(settings), settings)
+        self.assertEqual(len(names[-1].encode("utf-8")), 200)
+
+    def test_invalid_names_keep_existing_rejections(self):
+        names = [None, False, 1, [], {}, "", ".html", ".hidden.html", " report.html",
+                 "a" * 196 + ".html", "가" * 66 + ".html", "report.HTML", "report.htm",
+                 "report.html ", "CON.html", "con .html", "LPT9.html", "../report.html",
+                 "a/b.html", "a\\b.html", "a:b.html", 'a"b.html', "a<b.html", "a>b.html",
+                 "a|b.html", "a?b.html", "a*b.html"]
+        names.extend("a" + chr(code) + ".html" for code in range(32))
+        for filename in names:
+            with self.subTest(filename=filename), self.assertRaisesRegex(ManagerError, "report.filename"):
+                validate_report({"filename": filename})
+
+    def test_type_and_length_rejected_before_regex(self):
+        with patch("runner.reports.re.fullmatch", side_effect=AssertionError("unbounded regex input")):
+            for filename in (None, 3, "a" * 196 + ".html", "가" * 66 + ".html", "!" * 262144):
+                with self.subTest(kind=type(filename).__name__), self.assertRaises(ManagerError):
+                    validate_report({"filename": filename})
+
+
 class ReportTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()

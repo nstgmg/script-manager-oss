@@ -307,6 +307,31 @@ test('cleaned package keeps metadata visible and disables download and deploymen
   assert.equal(app.element('plan').disabled,true);
   assert.match(app.element('package-info').textContent,/p-old/);
 });
+test('package download preserves the API route and encodes the Package ID',async()=>{
+  const app=dashboard(), links=[], actions=[];
+  vm.runInContext('selected="demo"',app.context);
+  app.context.document.createElement=tag=>{
+    const link=node(tag);
+    link.click=()=>actions.push('click'); link.remove=()=>actions.push('remove');
+    links.push(link); return link;
+  };
+  app.context.document.body={append:link=>{assert.equal(link,links.at(-1));actions.push('append');}};
+  for(const [id,component] of [['p-0123456789abcdef','p-0123456789abcdef'],
+                               ['p/a?b#c% "<tag>','p%2Fa%3Fb%23c%25%20%22%3Ctag%3E']]){
+    app.element('package-select').value=id;
+    await app.element('package-download').onclick();
+    const link=links.at(-1);
+    assert.equal(link.href,'/api/jobs/demo/packages/'+component+'/download');
+    assert.equal(link.download,'demo-'+id+'.zip');
+    assert.deepEqual(actions.splice(0),['append','click','remove']);
+  }
+  const count=links.length;
+  app.element('package-select').value='';
+  await app.element('package-download').onclick();
+  assert.equal(links.length,count);
+  assert.equal(app.element('notice').className,'error');
+  assert.equal(app.element('notice-message').textContent,'Package를 선택하세요.');
+});
 test('deployment UI sends the selected Package and confirmed plan hash',async()=>{
   const app=dashboard(), calls=[];
   vm.runInContext('selected="demo"; approve=async()=>true; refreshDetail=async()=>{};',app.context);

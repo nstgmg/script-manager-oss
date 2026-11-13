@@ -122,6 +122,9 @@ class DashboardTests(unittest.TestCase):
         self.assertEqual(difference["modified"], ["main.py"])
         self.assertEqual(first[1], self.request("GET", endpoint + "/download")[1])
         self.assertEqual(self.request("GET", "/api/jobs/other/packages/" + package_id + "/download")[0], 409)
+        for encoded_id in ("p%2Fa", "p%3Fa", "%2E%2E%2Fescape", "p%252Fa"):
+            with self.subTest(encoded_id=encoded_id):
+                self.assertEqual(self.request("GET", "/api/jobs/sample/packages/" + encoded_id + "/download")[0], 400)
 
     def test_trash_delete_list_restore_and_conflict_over_http(self):
         job = json.loads(self.request("POST", "/api/jobs", {"id": "sample", "name": "휴지통 검증"})[1])

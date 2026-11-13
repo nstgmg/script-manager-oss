@@ -87,8 +87,9 @@ def validate_report(value):
         raise ManagerError("보고서를 활성화하려면 report.source를 명시하세요.")
     filename = value.get("filename")
     if "filename" in value:
-        if (not isinstance(filename, str) or not re.fullmatch(r"[^<>:\"/\\|?*\s][^<>:\"/\\|?*]*\.html", filename)
-                or any(ord(c) < 32 for c in filename) or len(filename.encode("utf-8")) > 200
+        if (not isinstance(filename, str) or len(filename.encode("utf-8")) > 200
+                or not re.fullmatch(r"[^<>:\"/\\|?*\s][^<>:\"/\\|?*]*\.html", filename)
+                or any(ord(c) < 32 for c in filename)
                 or filename.startswith(".") or filename.endswith(" ")
                 or filename.split(".")[0].rstrip().upper() in WINDOWS_RESERVED):
             raise ManagerError("report.filename은 경로 없는 안전한 .html 파일명(200 bytes 이하)이어야 합니다.")

@@ -650,7 +650,7 @@ $("package-create").onclick=safe(async()=>{
   catch(error){notice("Package 생성 완료 · 목록 새로고침 실패: "+error.message,true);}
 });
 $("package-select").onchange=safe(async()=>{invalidatePlan(); await refreshPackages(await api(path("deployments")),selected);});
-$("package-download").onclick=safe(async()=>{const id=$("package-select").value; if(!id)throw new Error("Package를 선택하세요."); const link=document.createElement("a"); link.href="/api/"+path("packages/"+id+"/download"); link.download=selected+"-"+id+".zip"; document.body.append(link); link.click(); link.remove(); notice("Package ZIP 다운로드를 요청했습니다. 대상 환경의 실행 결과는 별도로 확인하세요.");});
+$("package-download").onclick=safe(async()=>{const id=$("package-select").value; if(!id)throw new Error("Package를 선택하세요."); const link=document.createElement("a"); link.href="/api/"+path("packages/"+encodeURIComponent(id)+"/download"); link.download=selected+"-"+id+".zip"; document.body.append(link); link.click(); link.remove(); notice("Package ZIP 다운로드를 요청했습니다. 대상 환경의 실행 결과는 별도로 확인하세요.");});
 $("target").onchange=safe(async()=>{invalidatePlan();renderDeploymentSummary();await refreshPackages(deploymentHistory,selected);});
 $("plan").onclick=safe(async()=>{
   const packageId=$("package-select").value,target=$("target").value,id=selected,sequence=++planSequence;
