@@ -31,6 +31,16 @@
 
 사용자는 명령을 외울 필요가 없습니다. [사용자 가이드](USER_GUIDE.md)는 요청 예시와 필요한 입력·승인, [기능 안내](docs/capabilities.md)는 제품 기능과 새 스크립트가 필요한 일을 설명합니다.
 
+## 버전과 업데이트
+
+루트 [VERSION](VERSION)의 `0.1.0`은 **예정된 첫 배포 버전**이며, 아직 공식 `v0.1.0` Release를 발행하지 않았습니다. 제품 버전 `X.Y.Z`는 공식 GitHub Release Tag `vX.Y.Z`와 대응합니다. VERSION만으로 공식 배포 여부를 판단하지 않습니다. 현재 기본 clone은 `main` 개발 소스 설치이며, Release가 없을 때 최신 `main`을 안정 버전으로 간주하지 않습니다.
+
+처음 설치는 [INSTALL](INSTALL.md), 기존 설치의 버전 확인·업데이트·실패 시 코드 복구는 [UPDATE](UPDATE.md)를 따릅니다. 같은 프로젝트에서 에이전트에게 요청하세요.
+
+> Script Manager 업데이트 확인해 줘.
+
+이 요청은 버전·Release Notes·업데이트 계획 확인과 안내만 수행합니다. 적용하려면 “Script Manager 업데이트해 줘”라고 명시하세요. 에이전트는 안전 점검 후 승인 범위에서만 적용하며, 로컬 수정·비호환 변경·실행 중 작업과 충돌하면 덮어쓰지 않고 안내합니다. Job·예약·운영 데이터·설정·비밀정보를 보존하고 기존 Dashboard Skill 등록도 확인합니다. 자동 업데이트·자동 재시작은 하지 않습니다. 안정 Release가 없으면 적용할 안정 업데이트가 없다고 안내합니다.
+
 ## 주요 기능
 
 - 파일 기반 Job 정의와 검증, 한 Job의 여러 Schedule 관리
@@ -84,7 +94,7 @@ jobs/, runtime/, workspace/, reports/는 운영 데이터이며 Git에서 제외
 ## 문서
 
 - [무엇을 할 수 있나](docs/capabilities.md), [자연어로 사용하는 가이드](USER_GUIDE.md)
-- [설치·에이전트 온보딩·문제 해결](INSTALL.md), [에이전트 지침](AGENTS.md), [스크립트 작성](docs/script-authoring.md)
+- [설치·에이전트 온보딩·문제 해결](INSTALL.md), [버전·업데이트](UPDATE.md), [에이전트 지침](AGENTS.md), [스크립트 작성](docs/script-authoring.md)
 - [CLI](docs/cli.md), [운영](docs/operations.md), [파라미터](docs/run-parameters.md), [결과 조회](docs/result-queries.md), [HTML](docs/html-reports.md)
 - [Package·배포](docs/packages.md), [보존 정책](docs/phase3-lifecycle.md), [기여·테스트](CONTRIBUTING.md), [공개 준비 검증](docs/public-readiness.md)
 
