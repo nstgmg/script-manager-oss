@@ -23,7 +23,7 @@ Candidate → upstream changes are exceptional, separately reviewed selections. 
 
 For general questions, contributions, collaboration or licensing inquiries, contact [oss@def-v.com](mailto:oss@def-v.com). Public issues and pull requests may be used for non-sensitive contribution discussions.
 
-Report security vulnerabilities privately to [security@def-v.com](mailto:security@def-v.com), following [SECURITY.md](SECURITY.md#reporting). Do not post vulnerability details in public GitHub issues, pull requests or commits, or send them to the general inquiry address. GitHub Private Vulnerability Reporting is a planned additional channel after the separately approved Public transition and verification; it is not currently active.
+Report security vulnerabilities privately to [security@def-v.com](mailto:security@def-v.com) or the enabled GitHub Private Vulnerability Reporting channel, following [SECURITY.md](SECURITY.md#reporting). This repository is Public. Do not post vulnerability details in public GitHub issues, pull requests or commits, or send them to the general inquiry address. See the [CodeQL triage criteria](docs/codeql-triage.md) before changing alert states or analysis scope.
 
 ## Before hosting
 

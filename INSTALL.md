@@ -12,13 +12,15 @@
 
 코드의 최소 Python은 3.9입니다. Python 3.9는 [유지보수 종료](https://devguide.python.org/versions/) 상태이므로 새 실사용 환경에는 유지보수 중인 CPython을 준비하세요. 새 환경에는 Python 3.13을 권장하며, 3.13.18에서 독립 설치를 확인했습니다. 코드 최소 버전은 이번에 바꾸지 않았습니다. 3.9.6은 과거 호환성 기록이며 보안 권장 버전이 아닙니다. 다른 Python 버전·Intel macOS의 성공은 보장하지 않습니다. [실제 검증 기록](docs/validation.md)과 [원격 제한](docs/packages.md)을 확인하세요. 원격 required_env, 표준 로컬 데이터 경로·보고서·로그/결과 동기화는 로컬과 동일하게 지원되지 않습니다.
 
-필요한 것은 Git, venv/pip를 포함한 Python, 사용자 소유의 쓰기 가능한 빈 설치 경로, GitHub/PyPI 접근입니다. 현재 Private 저장소는 해당 계정의 저장소 읽기 권한과 기존 Git 인증이 필요합니다. 인증이 없으면 사용자에게 직접 로그인을 요청하고 중단합니다. 토큰·SSH 키·.env 값을 에이전트에 전달하거나 URL/명령에 넣지 마세요.
+필요한 것은 Git, venv/pip를 포함한 Python, 사용자 소유의 쓰기 가능한 빈 설치 경로, GitHub/PyPI 접근입니다. 저장소는 Public이며 아래 HTTPS clone에는 GitHub 로그인이나 토큰이 필요하지 않습니다. SSH clone을 선택하면 기존 Git SSH 인증이 필요합니다. 토큰·SSH 키·.env 값을 에이전트에 전달하거나 URL/명령에 넣지 마세요.
+
+Script Manager는 신뢰하는 로컬 단일 사용자가 검토한 Job을 실행하는 도구입니다. Job은 사용자 OS 권한으로 실행되며 sandbox가 아닙니다. GitHub Private Vulnerability Reporting은 활성화되어 있습니다. 보안 제보는 [SECURITY](SECURITY.md#reporting)의 GitHub 비공개 절차 또는 [security@def-v.com](mailto:security@def-v.com), 일반 문의는 [oss@def-v.com](mailto:oss@def-v.com)을 사용하세요.
 
 관리자 권한, DB, LLM API 키, Node, 브라우저 빌드는 기본 실행에 필요 없습니다. Node/Chrome은 선택적 개발 테스트 도구입니다. Job 전용 실행 파일과 라이브러리는 별도이며 자동 설치되지 않습니다. 프로젝트는 pip 패키지가 아니므로 pip install . 또는 전역 console command를 사용하지 않습니다.
 
 ## 1. 소스 받기
 
-기존 동명 디렉터리가 없는 사용자 소유 상위 폴더에서 실행합니다. HTTPS 인증은 Git의 정상 인증 절차로 사용자가 처리합니다. 기존 SSH 인증을 사용하려면 clone URL만 git@github.com:nstgmg/script-manager-oss.git 으로 바꿀 수 있습니다. 여기서 소스 다운로드용 Git SSH 인증은 배포 엔진의 원격 작업을 실행하지 않습니다.
+기존 동명 디렉터리가 없는 사용자 소유 상위 폴더에서 실행합니다. Public HTTPS clone은 인증 없이 읽을 수 있습니다. 기존 SSH 인증을 사용하려면 clone URL만 git@github.com:nstgmg/script-manager-oss.git 으로 바꿀 수 있습니다. SSH 인증이 준비되지 않았다면 사용자가 Git의 정상 인증 절차로 준비하거나 HTTPS를 사용하세요. 여기서 소스 다운로드용 Git SSH 인증은 배포 엔진의 원격 작업을 실행하지 않습니다.
 
 ```sh
 git clone https://github.com/nstgmg/script-manager-oss.git script-manager-oss
@@ -161,7 +163,7 @@ run-dashboard는 기존 서버의 실행 클라이언트이고 시작 명령이 
 
 | 증상 | 확인과 조치 |
 | --- | --- |
-| clone: repository not found / Permission denied | Private 접근 권한과 Git 인증을 사용자가 확인. 토큰이나 키를 출력하지 않음 |
+| clone: repository not found / Permission denied | 저장소 URL·GitHub 접근과 네트워크 정책 확인. Public HTTPS clone은 로그인 불필요; SSH 사용 시 기존 Git SSH 인증을 사용자가 확인. 토큰이나 키를 출력하지 않음 |
 | python3/py 없음, 버전 <3.9 | 신뢰하는 Python 배포로 준비. 자동 관리자 설치 안 함 |
 | No module named venv / ensurepip 없음 | 해당 배포의 venv/pip 패키지를 사용자 승인으로 준비하고 새 환경 생성 |
 | pip TLS/DNS/proxy/접근 오류 | 승인된 네트워크·조직 CA/proxy 확인. TLS 검사 해제 안 함 |

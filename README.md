@@ -14,7 +14,7 @@ DB, LLM API, Node, 프런트엔드 빌드는 기본 실행에 필요 없습니�
 
 ## 빠른 시작
 
-Git과 venv/pip 포함 유지보수 중인 Python(3.13 권장; 코드 최소 3.9, 3.9 자체는 EOL)을 준비하고 새 사용자 소유 폴더에서 시작합니다. 현재 Private 저장소는 기존 GitHub 읽기 권한/인증이 필요합니다. 아래는 macOS/POSIX 셸 절차입니다. Windows PowerShell과 Linux의 상세 절차·지원 범위·오류 해결은 [INSTALL.md](INSTALL.md)를 따르세요.
+Git과 venv/pip 포함 유지보수 중인 Python(3.13 권장; 코드 최소 3.9, 3.9 자체는 EOL)을 준비하고 새 사용자 소유 폴더에서 시작합니다. 저장소는 Public이며 HTTPS 소스 다운로드에는 GitHub 로그인이 필요하지 않습니다. 아래는 macOS/POSIX 셸 절차입니다. Windows PowerShell과 Linux의 상세 절차·지원 범위·오류 해결은 [INSTALL.md](INSTALL.md)를 따르세요.
 
 ```sh
 git clone https://github.com/nstgmg/script-manager-oss.git script-manager-oss
@@ -44,13 +44,13 @@ macOS ARM64 / Python 3.13.18에서 독립 설치와 CLI·수동 실행·저장 �
 
 실제 SSH/systemd 서버는 미검증입니다. 원격 required_env는 project root 전달 누락으로 실행에 실패하고, 로컬 표준 데이터 경로·보고서·로그/결과 동기화도 동일하게 제공되지 않습니다. verified는 업무 실행 성공이 아닙니다. [Package·SSH 제한](docs/packages.md)을 먼저 읽으세요.
 
-Dashboard는 사용자의 명시적 서비스 요청 후에만 시작하며 loopback 단일 사용자용입니다. 시작·기존 서비스 확인·Ctrl+C 종료는 [INSTALL](INSTALL.md#4-선택적-dashboard-시작과-종료)에 있습니다. Package·Lifecycle·복구용 전용 Runner CLI는 없습니다.
+Dashboard는 사용자의 명시적 서비스 요청 후에만 시작하며 loopback 단일 사용자용입니다. 신뢰하는 로컬 사용자가 검토한 Job만 실행하세요. 공개 저장소라는 사실은 Dashboard의 인터넷 공개나 비신뢰 Job의 안전한 실행을 뜻하지 않습니다. 시작·기존 서비스 확인·Ctrl+C 종료는 [INSTALL](INSTALL.md#4-선택적-dashboard-시작과-종료)에 있습니다. Package·Lifecycle·복구용 전용 Runner CLI는 없습니다.
 
 jobs/, runtime/, workspace/, reports/는 운영 데이터이며 Git에서 제외합니다. --root는 데이터 경로를 선택하는 전역 옵션입니다. 비밀은 사용자가 루트 .env에 직접 등록하고 Job의 required_env에 이름만 선언합니다. 에이전트는 실제 값을 읽지 않습니다. [SECURITY](SECURITY.md)를 확인하세요. 보안 취약점은 [SECURITY.md의 비공개 제보 절차](SECURITY.md#reporting)를 따르세요.
 
 ## 문의·협업
 
-일반 문의·기여·협업·라이선스 문의는 [oss@def-v.com](mailto:oss@def-v.com)으로 보내세요. 보안 취약점은 일반 문의나 공개 GitHub Issue 대신 [SECURITY.md](SECURITY.md)의 공식 비공개 채널로 제보하세요.
+일반 문의·기여·협업·라이선스 문의는 [oss@def-v.com](mailto:oss@def-v.com)으로 보내세요. 보안 취약점은 [security@def-v.com](mailto:security@def-v.com) 또는 활성화된 GitHub Private Vulnerability Reporting으로 비공개 제보하세요. 공개 GitHub Issue에 취약점 세부 정보를 게시하지 말고 [SECURITY.md](SECURITY.md#reporting)를 따르세요.
 
 ## 문서
 

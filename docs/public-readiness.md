@@ -1,3 +1,26 @@
+# 공개 상태와 검증 기록
+
+상태 확인일: 2026-11-13 (Asia/Seoul). 저장소 `nstgmg/script-manager-oss`는 **Public**이며 GitHub Security Overview에서 **Private Vulnerability Reporting Enabled**를 확인했습니다. Security policy, Security advisories, Dependabot alerts, Code scanning alerts, Secret scanning alerts도 Enabled로 관찰했습니다. 이 확인은 설정 변경, 알림 전달·비관리자 제보 폼·메일 송수신의 새 검증을 뜻하지 않습니다.
+
+보안 제보는 [security@def-v.com](mailto:security@def-v.com) 또는 GitHub의 비공개 제보 절차, 일반 문의는 [oss@def-v.com](mailto:oss@def-v.com)을 사용하세요. 자세한 절차는 [SECURITY](../SECURITY.md#reporting), 설치는 [INSTALL](../INSTALL.md), CodeQL 기준 커밋 `9040b78`의 분류·최소 수정·경고 관리 기준은 [CodeQL 후속 조치](codeql-triage.md)를 따릅니다.
+
+공개 소스는 신뢰하는 로컬 단일 사용자가 검토한 Job을 실행하는 도구입니다. Dashboard의 공개 bind·프록시·포트 포워딩, 다중 사용자 제공, 비신뢰 Job 실행을 안전하다고 주장하지 않습니다. Windows·Linux 실제 설치, native 예약, 실제 SSH/systemd 미검증과 Linux 로컬 예약 미지원, 원격 required_env·표준 데이터 경로 등의 제한은 유지합니다. 아래의 과거 성공 기록을 새로운 플랫폼 검증으로 해석하지 마세요.
+
+## 현재 운영 확인
+
+- [x] 저장소 Public 및 Private Vulnerability Reporting Enabled를 GitHub UI에서 확인.
+- [x] 공식 보안/일반 연락처를 유지하고 현재 공개 상태와 문서 안내를 일치시킴. 이메일 송수신은 이번에 반복하지 않음.
+- [ ] 비관리자 관점의 Report a vulnerability 폼, 유지보수자 알림 전달·private report 접근·메일 모니터링을 별도로 확인. 허위 제보는 제출하지 않음.
+- [ ] Dependency graph, Dependabot security updates/grouping, repository push protection의 세부 상태는 개별 확인. 관련 alerts Enabled만으로 이 설정까지 켜졌다고 추정하지 않음.
+- [ ] CodeQL은 정확한 푸시 SHA의 분석 완료 후 실제 경고 변화를 확인. 분류 기록을 경고 일괄 해제로 사용하지 않음.
+
+이 후속 작업은 실제 Job·OS 예약·원격 배포·기존 서비스·GitHub 보안 설정을 변경하지 않습니다. Release/Tag 생성이나 보안 무결점·전체 원격 기능 지원을 선언하는 작업도 아닙니다.
+
+<details>
+<summary>Public 전환 전 Phase 3·4 및 연락처 정비 원기록 — 당시 상태로 보존</summary>
+
+아래의 Private, 기능 Off/Disabled, Public 전 승인·활성화 대기, 과거 후보 판정·커밋은 해당 검증 당시의 기록입니다. 현재 공개 상태와 보안 기능 활성 여부는 위 현황을 따릅니다. 설치·의존성 감사·기능 테스트를 이번에 재실행했다는 뜻이 아닙니다.
+
 # 공개 준비 현황 — 공식 연락처 최종 정비
 
 최종 정비일: 2026-11-13 (Asia/Seoul). 대상: `nstgmg/script-manager-oss` **Private**, 이번 문서 변경의 기준 커밋 `7f94eb14d861df18f2f3f98875f7a68423c3414c`. 아래 Python 3.13·의존성 감사는 기존 Phase 4 검증(기준 `f8d229134a88a68ed0759eab00f1e6185b16608d`) 결과를 보존한 것이며 이번에 재실행하지 않았습니다.
@@ -233,5 +256,7 @@ P0는 즉시 데이터 노출/실행 위험, P1은 공개 전 해결 또는 명�
 | P2 | 전이 의존성 clib 하한만 지정 | 단독 필수 차단 아님 | 다른 배포 환경에서 실제 버전/라이선스/감사 확인; lock 정책은 별도 결정 |
 
 설치·합성 실행·기본 조회는 재현됐습니다. 공개 준비 완료를 Public 전환 승인으로 해석하지 않습니다. 제보 채널과 보안 기준을 결정하고 당시 최종 커밋 재검사 후 별도 Public 승인을 받아야 합니다.
+
+</details>
 
 </details>

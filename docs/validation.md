@@ -1,6 +1,6 @@
 # Validation records
 
-Current installation/security checks: [Phase 3 public readiness](public-readiness.md). The following is the historical Phase 2A record; its no-hosting statements describe that phase only. Private registration happened later.
+Current public/security status and preserved installation checks: [public readiness](public-readiness.md). Focused CodeQL follow-up and alert handling criteria: [CodeQL triage](codeql-triage.md). The following is the historical Phase 2A record; its no-hosting statements describe that phase only. Private registration and the Public transition happened later. Those historical platform results are not new verification of Windows, Linux, native schedules or real SSH/systemd.
 
 ## Historical local candidate validation — Phase 2A
 
