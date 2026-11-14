@@ -1,6 +1,6 @@
 # 설치와 에이전트 온보딩
 
-이 문서는 특정 에이전트의 플러그인·Skill·셸 초기화 설정 없이 사용하는 절차입니다. Codex, Claude Code 또는 다른 도구에 저장소 주소와 “설치하고 합성 예제로 확인해 줘”를 전달할 수 있습니다. 에이전트가 AGENTS.md를 자동 탐색하지 않으면 이 문서와 [AGENTS.md](AGENTS.md)를 직접 읽게 하세요.
+이 문서는 특정 에이전트의 플러그인·Skill·셸 초기화 설정 없이 사용하는 절차입니다. Codex, Claude Code 또는 다른 도구에 저장소 주소와 “설치하고 합성 예제로 확인해 줘”를 전달할 수 있습니다. 에이전트가 AGENTS.md를 자동 탐색하지 않으면 이 문서와 [AGENTS.md](AGENTS.md)를 직접 읽게 하세요. **사용자가 사용할 OS와 파일시스템에서 직접 설치합니다.** Windows 요청을 에이전트의 Linux 컨테이너·WSL·원격 macOS에서 대신 설치하고 Windows 설치 완료라고 보고하지 않습니다. 대상 OS 터미널에 접근할 수 없으면 준비 가능한 명령과 접근 제약을 보고합니다.
 
 설치 후 가능한 일은 [기능 안내](docs/capabilities.md), 자연어 요청 방법은 [사용자 가이드](USER_GUIDE.md)를 따릅니다. 설치 완료 보고에는 실제 설치 경로·사용한 Python·합성 Run과 결과 위치·미완료 단계를 적고, “이걸로 뭘 할 수 있어?” 또는 “만든 작업들과 실행 결과를 보여줘”로 이어갈 수 있음을 안내하세요.
 
@@ -8,7 +8,7 @@
 
 | 범위 | macOS | Windows | Linux |
 | --- | --- | --- | --- |
-| CLI·수동 Job·결과·HTML·Dashboard | ARM64 / Python 3.13.18 독립 실검증 (기존 3.9.6 기록 보존) | 구현·모의 테스트, 실제 설치 미검증 | POSIX 구현, 실제 설치 미검증 |
+| CLI·수동 Job·결과·HTML·Dashboard | ARM64 / Python 3.13.18 독립 실검증 (기존 3.9.6 기록 보존) | 외부 PC / Python 3.14.3 설치·예제 실행·결과 조회 성공 보고 (9 PASS / 1 SKIP); HTML·Dashboard 및 이번 복구 경로는 실검증 대기 | POSIX 구현, 실제 설치 미검증 |
 | 로컬 예약 | launchd 구현, 이번 설치 검증에서 적용 안 함 | Task Scheduler 구현, 실환경 미검증 | 미지원 |
 | SSH 배포 대상 | 미지원 | 미지원 | systemd user 구현, 실서버 미검증·기능 제한 있음 |
 
@@ -22,11 +22,31 @@ Script Manager는 신뢰하는 로컬 단일 사용자가 검토한 Job을 실�
 
 ## 1. 소스 받기
 
-기존 동명 디렉터리가 없는 사용자 소유 상위 폴더에서 실행합니다. Public HTTPS clone은 인증 없이 읽을 수 있습니다. 기존 SSH 인증을 사용하려면 clone URL만 git@github.com:nstgmg/script-manager-oss.git 으로 바꿀 수 있습니다. SSH 인증이 준비되지 않았다면 사용자가 Git의 정상 인증 절차로 준비하거나 HTTPS를 사용하세요. 여기서 소스 다운로드용 Git SSH 인증은 배포 엔진의 원격 작업을 실행하지 않습니다.
+**clone 전에** 사용자 OS·현재 셸·절대 프로젝트/설치 경로를 확인하고 숨김 파일을 포함해 대상과 주변의 기존 설치를 확인합니다. 알려진 설치 경로가 있으면 먼저 재사용 여부를 판별합니다. 전체 디스크를 검색하거나 비밀 파일을 읽을 필요는 없습니다. 같은 폴더 안에 다시 clone해서 `script-manager-oss/script-manager-oss`를 만들지 않습니다.
+
+| 관찰한 상태 | 다음 행동 |
+| --- | --- |
+| 기존 코드 + 작동하는 venv | 로컬 VERSION/HEAD/worktree와 아래 bootstrap 상태부터 확인. 기존 CLI로 list → 필요한 get/runs/results 조회. 재설치·pip 업그레이드·합성 재실행 금지 |
+| 코드만 있음 / 의존성 설치 중 실패 | 같은 checkout에서 상태 확인 후 누락 단계만 재시도. clone·venv 복사·코드 덮어쓰기 금지 |
+| jobs/runtime/.env 등 데이터 있음 + 환경 손상 | 기존 설치로 취급. 데이터와 실행 상태를 보존해 진단하고 [UPDATE](UPDATE.md)의 복구 절차 검토. 자동 새 설치/환경 교체 금지 |
+| 다른 내용·불완전 clone·정체 불명 폴더 | 그대로 보존하고 보고. 실패한 clone을 같은 비어 있지 않은 폴더에 반복하지 않음; 필요 시 충돌 없는 새 경로 사용 |
+| 대상 없음 / 숨김 파일까지 완전히 빈 폴더 | 아래 새 설치 진행 |
+
+Public HTTPS clone은 인증 없이 읽을 수 있습니다. 기존 SSH 인증을 사용하려면 clone URL만 git@github.com:nstgmg/script-manager-oss.git 으로 바꿀 수 있습니다. SSH 인증이 준비되지 않았다면 사용자가 Git의 정상 인증 절차로 준비하거나 HTTPS를 사용하세요. 여기서 소스 다운로드용 Git SSH 인증은 배포 엔진의 원격 작업을 실행하지 않습니다.
 
 ```sh
 git clone https://github.com/nstgmg/script-manager-oss.git script-manager-oss
+# clone 종료 코드가 0일 때만 다음 명령 수행
 cd script-manager-oss
+```
+
+PowerShell 5.1에는 `&&`가 없습니다. 예를 들어 새 설치의 clone은 아래처럼 실패 즉시 멈춥니다. 기존 경로가 있으면 이 블록을 실행하지 말고 먼저 위 표대로 판별합니다.
+
+```powershell
+if (Test-Path -LiteralPath '.\script-manager-oss') { throw 'Destination exists: inspect before cloning' }
+git clone https://github.com/nstgmg/script-manager-oss.git script-manager-oss
+if ($LASTEXITCODE -ne 0) { throw 'clone failed; preserve and inspect the destination' }
+Set-Location -LiteralPath '.\script-manager-oss'
 ```
 
 기존 설치·venv·Job·운영 데이터를 복사하거나 설치 경로를 덮어쓰지 않습니다. 다운로드 ZIP을 선택한 경우에도 새 폴더에 풀고 코드 루트로 이동합니다.
@@ -51,19 +71,45 @@ python3 -m venv .venv
 .venv/bin/python -m runner list
 ```
 
-### Windows (PowerShell, 실환경 미검증)
+### Windows (PowerShell 5.1/7, 새 복구 경로는 실검증 대기)
 
-Git과 venv/pip 포함 Python을 먼저 설치합니다. Python launcher가 없다면 설치한 Python의 전체 경로를 사용합니다.
+Git과 venv/pip 포함 Python을 먼저 준비합니다. `py -3 --version`으로 실제 선택 버전을 확인합니다. 외부 PC에서는 3.14.3으로 기본 설치를 완료했지만 모든 3.14 조합의 호환성을 뜻하지 않습니다. Python launcher가 없다면 `& 'C:\path with spaces\python.exe' ...`처럼 확인한 실행 파일을 직접 호출합니다. `py -3`이 실행되지 않거나 다른 OS에서 작업 중이면 먼저 보고합니다.
+
+코드 루트에서 표준 라이브러리 전용 [bootstrap](scripts/bootstrap.py)의 **상태 조회부터** 실행합니다. 이 조회는 pip 네트워크 접근·초기화·Job·예약·서비스 변경 없이 `.venv`와 설치된 의존성을 확인하며 `.env` 내용은 읽지 않습니다. `data_paths`는 기본 코드 루트의 데이터 흔적만 찾습니다. 별도 `--root`를 쓰던 설치라면 그 데이터 경로와 기존 서비스도 별도로 확인하세요.
 
 ```powershell
 py -3 --version
-py -3 -m venv .venv
-.\.venv\Scripts\python.exe -m pip install --upgrade pip setuptools
-.\.venv\Scripts\python.exe -m pip install -r requirements.txt
-.\.venv\Scripts\python.exe -m pip check
-.\.venv\Scripts\python.exe -m runner --help
-.\.venv\Scripts\python.exe -m runner list
+if ($LASTEXITCODE -ne 0) { throw 'Python unavailable' }
+py -3 scripts/bootstrap.py
+if ($LASTEXITCODE -ne 0) { throw 'Inspect failed; stop here' }
 ```
+
+`state=ready`이면 재설치하지 않습니다. **신규/부분 설치이고 기존 데이터가 없음**을 확인한 경우에만 다음을 실행합니다.
+
+```powershell
+py -3 scripts/bootstrap.py --prepare
+if ($LASTEXITCODE -ne 0) { throw 'Runtime preparation failed; inspect before retry' }
+& '.\.venv\Scripts\python.exe' -m runner --help
+if ($LASTEXITCODE -ne 0) { throw 'CLI import failed' }
+& '.\.venv\Scripts\python.exe' -m runner list
+if ($LASTEXITCODE -ne 0) { throw 'Initialization failed' }
+```
+
+bootstrap은 새 `.venv`만 생성하고 작동하는 부분 venv는 재사용합니다. pip가 없으면 그 venv의 ensurepip를 사용하고 pip/setuptools → requirements → pip check 순서로 **실패 즉시 중단**합니다. 실행은 Python argv 배열이며 `shell=True`, Activate.ps1, 관리자 권한, 실행 정책 변경, 전역 pip 설치를 사용하지 않습니다. `runtime_ready=true`는 의존성 준비 판정뿐이며 **설치 완료는 3절의 실행·로그·결과 파일 검증 후**입니다. 준비된 환경은 재호출해도 의존성을 다시 설치하지 않습니다.
+
+pip에는 `--progress-bar off --no-color`와 자식 프로세스 범위의 비대화형 설정을 사용합니다. PowerShell 5.1의 native 실패는 `$ErrorActionPreference='Stop'`만으로 처리하지 않고 바로 `$LASTEXITCODE`를 검사합니다. 공백·한글 경로는 따옴표와 `&`로 호출하며 PowerShell 7 전용 `&&`, `||`, `??`, 삼항 연산자를 섞지 않습니다. 이 명령 구성은 모의 검증과 실제 OS 검증을 구분합니다.
+
+### 부분 설치 재시도
+
+| 실패 지점 | 안전한 복구 |
+| --- | --- |
+| pip 다운로드/requirements 실패, 아직 데이터 없음 | 같은 폴더에서 bootstrap 조회 → 원인 해결 → `--prepare` 재호출. 이미 설치된 패키지를 재사용하고 이후 단계는 성공 후에만 수행 |
+| `.venv`는 있지만 python/pyvenv.cfg 없음, 실행 불가, 외부 링크/잘못된 prefix | 자동 삭제·재생성하지 않고 `partial_venv`/`broken_venv`/`unsafe_venv` 보고. 파일을 보존해 원인을 확인하고 별도 복구 결정; 같은 명령 재시도는 안전하게 중단 |
+| 초기화가 시작되어 jobs/runtime 등이 있음 | `--prepare`로 의존성을 자동 변경하지 않음. 환경이 정상이라면 기존 CLI로 상태 확인; 손상 시 운영 데이터 보존 후 별도 복구 |
+| 예제 create/copy 뒤 중단 | 기존 hello-output을 get/runs로 확인. 자동 덮어쓰기·재등록·제출 금지. 이번 설치 요청에서 직접 만든 예제이고 Run이 없음을 확인한 경우에는 기존 승인 범위에서 누락 단계만 이어서 수행. 소유/내용이 불명확하면 보존하고 보고 |
+| Run 제출 뒤 관찰/조회 중단 | 저장한 ID의 runs/logs/results만 재조회. ID를 못 받았으면 runs에서 접수 여부를 먼저 확인; 새 Run 제출 금지 |
+
+bootstrap의 `--prepare`는 새 환경 준비 도구이며 기존 설치 업데이트/복구 명령이 아닙니다. 운영 중인 환경이나 동시에 다른 에이전트가 설치 중인 폴더에서 실행하지 않습니다. macOS/Linux에서도 `python3 scripts/bootstrap.py`와 명시적인 `--prepare`를 사용할 수 있으며 아래 수동 명령 역시 **새 설치에서만** 사용합니다.
 
 ### Linux (POSIX shell, 실환경 미검증)
 
@@ -126,17 +172,25 @@ cp examples/hello-output/main.py examples/hello-output/README.md jobs/hello-outp
 .venv/bin/python -m runner results hello-output --keyword Alpha --source synthetic --status ready
 ```
 
-Windows PowerShell은 다음과 같습니다. 예제의 python3 명령은 Windows 실행기에서 현재 실행 인터프리터로 치환합니다. 실제 Windows 검증 완료를 뜻하지 않습니다.
+Windows PowerShell은 다음과 같습니다. 예제의 python3 명령은 Windows 실행기에서 현재 실행 인터프리터로 치환합니다. 먼저 list가 빈 새 설치인지 확인합니다. 외부 PC의 기존 예제 성공 보고와 이번 명령/복구 경로의 실검증은 별개입니다.
 
 ```powershell
-.\.venv\Scripts\python.exe -m runner create --help
-.\.venv\Scripts\python.exe -m runner run --help
-.\.venv\Scripts\python.exe -m runner results --help
-.\.venv\Scripts\python.exe -m runner create hello-output --file examples/hello-output/job.yaml
-Copy-Item examples/hello-output/main.py,examples/hello-output/README.md jobs/hello-output/
-.\.venv\Scripts\python.exe -m runner get hello-output
-.\.venv\Scripts\python.exe -m runner run hello-output --wait
-.\.venv\Scripts\python.exe -m runner results hello-output --keyword Alpha --source synthetic --status ready
+if (Test-Path -LiteralPath '.\jobs\hello-output') { throw 'Existing example: inspect get/runs; do not overwrite' }
+& '.\.venv\Scripts\python.exe' -m runner create --help
+if ($LASTEXITCODE -ne 0) { throw 'create help failed' }
+& '.\.venv\Scripts\python.exe' -m runner run --help
+if ($LASTEXITCODE -ne 0) { throw 'run help failed' }
+& '.\.venv\Scripts\python.exe' -m runner results --help
+if ($LASTEXITCODE -ne 0) { throw 'results help failed' }
+& '.\.venv\Scripts\python.exe' -m runner create hello-output --file examples/hello-output/job.yaml
+if ($LASTEXITCODE -ne 0) { throw 'create failed; do not copy or run' }
+Copy-Item -LiteralPath 'examples/hello-output/main.py','examples/hello-output/README.md' -Destination 'jobs/hello-output/' -ErrorAction Stop
+& '.\.venv\Scripts\python.exe' -m runner get hello-output
+if ($LASTEXITCODE -ne 0) { throw 'get failed; stop before submission' }
+& '.\.venv\Scripts\python.exe' -m runner run hello-output --wait
+if ($LASTEXITCODE -ne 0) { throw 'Run failed or observation lost: inspect runs, do not resubmit' }
+& '.\.venv\Scripts\python.exe' -m runner results hello-output --keyword Alpha --source synthetic --status ready
+if ($LASTEXITCODE -ne 0) { throw 'Saved-result query failed; do not resubmit' }
 ```
 
 create --file은 정의를 검증하지만 기본 main.py/README도 생성하므로 예제 복사가 필수입니다. get에서 schedules: [], required_env/parameters 미선언을 확인합니다. run은 정확히 한 번 제출하고 반환된 id를 기록합니다. 성공 조건은 state=succeeded, exit_code=0, stdout에 `Hello Output: wrote 2 synthetic records to result.json`, stderr 비어 있음, 저장 Output 두 레코드 및 위 필터 total=1입니다. parameters/parameter_contract_version 필드가 반환되면 해당 Run 값을 그대로 보고합니다.
@@ -151,7 +205,15 @@ create --file은 정의를 검증하지만 기본 main.py/README도 생성하므
 .venv/bin/python -m runner report-render hello-output --source runtime/job-data/hello-output/output/RUN_ID/result.json
 ```
 
-Output 위치는 runtime/job-data/hello-output/output/RUN_ID/result.json, HTML은 반환된 reports/hello-output.html입니다. HTML은 파일로 열 수 있고 서버가 필요 없습니다. 로그가 한 페이지를 넘으면 반환된 offset으로 계속 조회합니다. 실패/대기/관찰 오류는 성공이 아니며 같은 Run ID를 조회합니다. run을 다시 제출하지 마세요. [예제 계약](examples/hello-output/README.md)과 [결과 조회](docs/result-queries.md)를 확인하세요.
+Output 위치는 runtime/job-data/hello-output/output/RUN_ID/result.json, HTML은 반환된 reports/hello-output.html입니다. **파일이 실제 존재하고 JSON의 complete=true, records의 id가 alpha/beta 두 개인지도 확인**합니다. PowerShell에서는 실제 RUN_ID를 넣은 뒤 아래처럼 읽습니다.
+
+```powershell
+Get-Content -LiteralPath '.\runtime\job-data\hello-output\output\RUN_ID\result.json' -Raw -Encoding UTF8 -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
+```
+
+HTML은 파일로 열 수 있고 서버가 필요 없습니다. 로그가 한 페이지를 넘으면 반환된 offset으로 계속 조회합니다. 실패/대기/관찰 오류는 성공이 아니며 같은 Run ID를 조회합니다. run을 다시 제출하지 마세요. [예제 계약](examples/hello-output/README.md)과 [결과 조회](docs/result-queries.md)를 확인하세요.
+
+완료 보고에는 사용자 OS/셸/Python 버전, 실제 코드·데이터·venv 경로, 기존/신규/부분 설치 판별, Run ID와 state/exit_code, 두 로그, 결과 파일 경로와 2행/Alpha 1행 확인을 포함합니다. 의존성 설치만 성공했거나 예제를 확인하지 못했으면 “환경 준비 완료, 설치 검증 미완료”로 구분합니다. 실제 OS 검증·모의 테스트·외부 사용자 보고·미검증 항목을 각각 표시하며 예약 실행 성공을 추정하지 않습니다.
 
 ## 4. 선택적 Dashboard 시작과 종료
 
@@ -198,6 +260,7 @@ run-dashboard는 기존 서버의 실행 클라이언트이고 시작 명령이 
 | python3/py 없음, 버전 <3.9 | 신뢰하는 Python 배포로 준비. 자동 관리자 설치 안 함 |
 | No module named venv / ensurepip 없음 | 해당 배포의 venv/pip 패키지를 사용자 승인으로 준비하고 새 환경 생성 |
 | pip TLS/DNS/proxy/접근 오류 | 승인된 네트워크·조직 CA/proxy 확인. TLS 검사 해제 안 함 |
+| PowerShell 5.1: 인덱스가 배열 범위를 벗어남 | 아래 진단 절차로 PowerShell/PSReadLine 예외인지 pip Python traceback인지 구분. 같은 checkout/venv 유지; 전체 설치·Run 재실행 금지 |
 | clib wheel 없음 / 컴파일 오류 | Python·CPU·pip 지원 확인. 새 venv에서 pip 업데이트 후 의존성 설치 재시도. 빌드 도구/OS 변경은 승인 필요 |
 | No module named runner / ruamel | 코드 루트와 방금 만든 .venv Python인지 확인. --root는 import 경로 설정이 아님 |
 | PermissionError / symlink 거부 | 사용자 소유의 일반 디렉터리 사용. 심볼릭 링크·공유 권한을 우회하지 않음 |
@@ -208,5 +271,16 @@ run-dashboard는 기존 서버의 실행 클라이언트이고 시작 명령이 
 | Dashboard Host/Origin/CSRF 거부 | 출력된 loopback URL 및 기존 보안 절차 사용. 검사를 완화하지 않음 |
 | run 실패/관찰 중단 | runs/logs/results에서 같은 ID 재조회. 실패 원인을 확인하고 자동 재제출하지 않음 |
 | 결과 없음/오래됨 | 수집 시각·Run·경로·경고 보고. 조회 요청만으로 재실행하지 않음 |
+
+### PowerShell 5.1 배열 인덱스 오류 진단
+
+외부 Windows PC의 Python 3.14.3 설치에서는 venv python.exe로 pip를 호출하던 중 이 오류가 발생했고 CMD에서 이어서 성공했습니다. 원본 traceback·호스트·PSReadLine 버전이 없어 **원인은 미확정**입니다. [PSReadLine upstream #4102](https://github.com/PowerShell/PSReadLine/issues/4102)에는 PowerShell 5.1에서 동일한 `IndexOutOfRangeException`이 있지만, 이 보고만으로 같은 결함이라고 결론 내리지 않습니다. 이번 변경은 진행 표시와 셸 재해석을 줄이고 실패 후 계속 진행하는 문제를 막는 예방·복구 조치이며 해당 예외의 재현 수정으로 표시하지 않습니다.
+
+1. 실패 단계·종료 코드와 비밀을 지운 예외 stack을 기록합니다. `$PSVersionTable.PSVersion`, `$Host.Name`, `Get-Module PSReadLine | Select-Object Name,Version`, `py -3 --version` 및 해당 venv의 `-m pip --version`을 확인합니다. `.env`, 전체 환경변수, 인증 포함 pip config는 출력하지 않습니다.
+2. `Microsoft.PowerShell.PSConsoleReadLine`/`System.IndexOutOfRangeException`이면 셸 입력/렌더링 경로를 의심합니다. Python `Traceback`의 pip 내부 프레임이면 pip/의존성 경로를 조사합니다. 문구만으로 구분하지 않습니다. 기존 Run이 있으면 먼저 관찰하고 새로 제출하지 않습니다.
+3. 동일 checkout에서 `powershell.exe -NoProfile -NonInteractive -Command "py -3 scripts/bootstrap.py"`로 읽기 전용 조회를 비교합니다. 필요 시 승인된 신규/부분 환경 준비에만 같은 명령의 마지막을 `scripts/bootstrap.py --prepare`로 바꿉니다. PSReadLine 설정·모듈 업데이트·전역 실행 정책 변경은 하지 않습니다.
+4. CMD 우회가 필요하면 CMD를 직접 열어 `cd /d "C:\actual path\script-manager-oss"` 후 `py -3 scripts\bootstrap.py`부터 확인합니다. 데이터 없는 부분 환경에서만 `py -3 scripts\bootstrap.py --prepare`를 실행합니다. 실패하면 그 자리에서 멈추고 상태를 다시 확인합니다. POSIX의 `source`/`cp`, PowerShell의 `&`/`Copy-Item`을 CMD에 섞지 않습니다. 이후 CLI는 `".venv\Scripts\python.exe" -m runner ...`이며 예제 제출 여부를 먼저 확인합니다.
+
+[pip 공식 옵션](https://pip.pypa.io/en/stable/cli/pip_install/#cmdoption-progress-bar)의 진행 표시 끄기와 [PowerShell native 종료 코드 처리](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_automatic_variables?view=powershell-5.1#lastexitcode)를 따릅니다. PowerShell 5.1/7, 프로필/비대화형, CMD에서 같은 환경을 비교하는 실제 Windows 후속 검증은 [검증 기록](docs/validation.md)에 남깁니다.
 
 기존 설치의 버전 확인·업데이트는 [UPDATE](UPDATE.md)를 따릅니다. “업데이트 확인해 줘”는 확인·안내만 수행하고, 명시적인 “업데이트해 줘” 요청일 때만 안전 점검 후 승인 범위에서 적용합니다. 현재 VERSION의 `0.1.0`은 예정된 첫 배포 버전이며 아직 Release를 발행하지 않았습니다. 위 기본 clone은 `main` 개발 소스 설치로, Release 부재 시 최신 `main`을 안정 버전으로 간주하지 않습니다. 저장소 관리자 간 수동 소스 반영은 별도 [기여 절차](CONTRIBUTING.md)를 따릅니다. 설치 제거를 이유로 예약·Job·runtime을 자동 삭제하지 않습니다.

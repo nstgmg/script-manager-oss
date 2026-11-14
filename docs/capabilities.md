@@ -41,7 +41,7 @@ Job은 **무엇을 실행할지**(명령·환경·제한시간·공개 입력)�
 
 | 기능 | macOS | Windows | Linux |
 | --- | --- | --- | --- |
-| CLI·수동 실행·저장 결과·HTML·Dashboard | ARM64 / Python 3.13.18 독립 설치 실검증; 과거 3.9.6 기록 보존 | 구현·모의 테스트, 실제 설치 미검증 | POSIX 구현, 실제 설치 미검증 |
+| CLI·수동 실행·저장 결과·HTML·Dashboard | ARM64 / Python 3.13.18 독립 설치 실검증; 과거 3.9.6 기록 보존 | 외부 PC / Python 3.14.3 설치·예제·결과 조회 성공 보고; HTML·Dashboard·새 복구 경로는 실검증 대기 | POSIX 구현, 실제 설치 미검증 |
 | 로컬 OS 예약 | launchd 구현, 기존 독립 설치 검증에서 native 적용 안 함 | Task Scheduler 구현, 실환경 미검증 | 미지원 |
 | SSH 배포 대상 | 미지원 | 미지원 | systemd user 구현, 실서버 미검증·제한 있음 |
 

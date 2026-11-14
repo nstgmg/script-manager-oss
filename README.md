@@ -101,7 +101,7 @@ Git, Python, 소스와 의존성을 내려받을 네트워크 접근이 필요�
 
 | 범위 | macOS | Windows | Linux |
 | --- | --- | --- | --- |
-| CLI·수동 실행·저장 결과·HTML·Dashboard | ARM64 / Python 3.13.18에서 독립 설치와 주요 동작 검증 | 구현·모의 테스트, 실제 설치·실행 미검증 | 구현, 실제 설치·실행 미검증 |
+| CLI·수동 실행·저장 결과·HTML·Dashboard | ARM64 / Python 3.13.18에서 독립 설치와 주요 동작 검증 | 외부 PC / Python 3.14.3 설치·예제·결과 조회 성공 보고; HTML·Dashboard·새 복구 경로는 실검증 대기 | 구현, 실제 설치·실행 미검증 |
 | 로컬 OS 예약 | launchd 실제 등록·간격 실행·OS를 통한 작업 실행·변경·제거 검증 | Task Scheduler 구현·모의 테스트, 실환경 미검증 | 미지원 |
 | SSH 배포 대상 | 미지원 | 미지원 | systemd user 구현, 실서버 미검증·기능 제약 있음 |
 

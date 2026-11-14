@@ -1,5 +1,48 @@
 # Validation records
 
+## Windows installation hardening after `0027dc7`
+
+Scope: checkout-local runtime preparation and agent onboarding, with no push, deployment, real OS Schedule activation or resident Dashboard startup. The code minimum remains Python 3.9. Existing operational Jobs, Schedules, Output, State, Workspace, secrets and deployment history were not changed. Runtime/dependency definitions and the existing execution/scheduling implementations are unchanged.
+
+### Evidence and cause assessment
+
+The owner supplied an **external Windows PC / Claude Code / Python 3.14.3** installation report: installation, offline example execution and saved-result lookup succeeded, with **9 PASS / 1 SKIP**. During venv `python.exe -m pip` in PowerShell 5.1, an array-index error required continuing in CMD. The original traceback, host/PSReadLine versions, exact test selection and skipped test identity were not supplied. This is an external user report, not a fresh Windows run by this change's author. It does not establish native Task Scheduler, HTML, Dashboard or the new bootstrap/recovery workflow.
+
+The exact error is **not reproduced and its cause remains unconfirmed**. pip runs before Script Manager imports. [PSReadLine #4102](https://github.com/PowerShell/PSReadLine/issues/4102) documents the same exception class on PowerShell 5.1, providing a diagnostic hypothesis rather than proof of a shared cause. A future report must distinguish PowerShell/PSReadLine frames from a Python pip traceback. No unrelated runner code was changed on the basis of an unverified hypothesis.
+
+Confirmed installation weaknesses: the old PowerShell sequence did not check native exit codes and could proceed after a failed dependency install; the retry procedure did not classify incomplete environments. The new [bootstrap](../scripts/bootstrap.py) uses argv subprocesses, disables pip progress/color, stops on the first failed phase and defaults to inspection. Existing ready runtimes are reused; detected operating data blocks automatic dependency repair; incomplete/foreign environments are preserved. Clone destination guards, direct user-OS installation, CMD/profile-free diagnosis and result-file completion criteria are in [INSTALL](../INSTALL.md) and [AGENTS](../AGENTS.md). No administrator, activation, policy or global configuration change is required.
+
+An actual macOS/Python 3.9 probe exposed a separate metadata issue: `importlib.metadata.version('ruamel.yaml')` could fail even though the installed underscored distribution imports and appears in `distributions()`. The probe now normalizes distribution names while enumerating metadata, preventing a working existing environment from being mistaken for missing dependencies. This is unrelated to the reported PowerShell exception.
+
+### Verification scope
+
+The host is **macOS ARM64 / Python 3.9.6**, Node 20.11.1 and installed Chrome. Python 3.9 is used here for compatibility validation, not recommended for new production installations. There is no `powershell.exe`, `pwsh`, native Windows or Linux environment on this host.
+
+- Bootstrap tests cover read-only missing-state inspection; existing-runtime reuse; preservation of all managed data categories without reading `.env`; partial/broken/foreign/linked venv refusal (including simulated Windows junction attributes on Python <3.12); venv/packaging/dependency failures; same-interpreter retry; missing-pip handling; wrong-pin/failed-pip-check protection; Windows argv construction with spaces/Korean paths; unsupported requirements refusal; and actual host venv/metadata probes.
+- The new actual-host CLI regression uses one isolated root and the unchanged public example: list, create/copy/get, exactly one Run, succeeded/exit 0, both logs, actual result.json with alpha/beta, saved total 2, Alpha total 1, duplicate-create refusal and unchanged original source/definition/Output/history. No real Job or Schedule is used.
+- Windows subprocess construction and injected failures are **simulations on macOS**, not native Windows results. PowerShell syntax parsing is a separate test guarded by native Windows plus `powershell.exe`; on this host it is skipped. The existing Task Scheduler integration test remains separately opt-in and is not enabled.
+- The existing checkout's bootstrap inspection and `--prepare` both reported `state=ready`; prepare returned `changed=false` and did not reinstall its dependencies or register/run an example. Fresh dependency download/installation through the new helper is not claimed as actual-OS validation.
+
+| Check | Actual result |
+| --- | --- |
+| Full Python suite, `python -m unittest discover -v` | **289 tests: 283 passed, 6 skipped, no failures/errors**, 43.361s |
+| New bootstrap/example tests | **19 tests: 18 passed, 1 native PowerShell parser skip** (included in the full suite) |
+| Existing Windows execution/schedule adapters | Passed in the full suite using fake native operations; not actual Windows |
+| Node Dashboard UI, `node --test tests/test_dashboard_ui.cjs` | **71 passed**, no failures/skips |
+| Python compatibility syntax | All 3 new Python files parse with Python 3.9 grammar |
+| Existing environment | Actual inspection and prepare returned ready / changed=false; no reinstall |
+| Documentation and whitespace | 111 local link targets checked; `git diff --check` passed |
+
+The full-suite skips are the Windows PowerShell parser, the Windows Task Scheduler integration, three opt-in launchd tests and one opt-in native maintenance test. Existing Chrome offline checks passed. Native OS schedule opt-ins stayed unset. The first restricted run recorded 7 browser subtest failures and 44 errors (loopback bind/launchctl restrictions and Chrome aborts); after approved test access, the same full suite passed without changing runtime code or relaxing security checks. The final full run includes the additional junction regression. Temporary test HTTP servers used isolated roots and were closed by their fixtures; no resident service was launched or controlled. Local ignored logs: `.cache/windows-install-python.txt` (restricted attempt), `.cache/windows-install-python-approved.txt` (earlier passing full run), `.cache/windows-install-python-final.txt` (final 289 tests), `.cache/windows-install-node.txt` (71 passing UI tests).
+
+### Remaining native Windows checks
+
+1. Capture a sanitized original exception stack and PS/PSReadLine/host/Python/pip versions. Compare the same checkout in PowerShell 5.1 (profile and `-NoProfile -NonInteractive`), PowerShell 7 and CMD. Confirm whether the exception reproduces with and without pip progress; do not classify it fixed from this macOS run.
+2. Run the new prepare/inspection flow on a new user-owned Windows directory, including spaces/Korean characters and a launcher-absent explicit Python path. Confirm nonzero native exits stop subsequent steps without elevation or execution-policy changes.
+3. Interrupt/fail dependency preparation and resume the same checkout/venv; inspect an incomplete venv, a nonempty/unrelated clone destination and an existing operating installation. Verify unchanged Job YAML/Schedules, Output, State, Workspace and deployment records; no nested clone or example resubmission.
+4. Complete one offline example and record Run ID, exit/state, both logs, actual result.json and the 2/1 saved-result counts. Re-enter installation and verify status-only behavior. Run `python -m unittest tests.test_bootstrap tests.test_installation_example tests.test_windows_execution tests.test_windows_schedule -v`; note the native PowerShell parser result separately. Validate Codex and Claude Code in the user's Windows terminal; Codex Skill host discovery remains a separate claim.
+5. Only with separate explicit authorization, enable `SCRIPT_MANAGER_TEST_WINDOWS=1` for `tests.test_native_windows` using temporary names. Confirm actual registration, OS-triggered execution, update/removal and cleanup. Calendar wall-clock arrival, login/reboot/sleep recovery and Windows HTML/Dashboard still require their own evidence.
+
 ## Main publication verification — 2026-11-14
 
 The owner explicitly authorized one feature commit and a normal push to `origin/main`, without a VERSION change, new tag, GitHub Release or deployment. Origin was verified as the public, unarchived [nstgmg/script-manager-oss repository](https://github.com/nstgmg/script-manager-oss), with default branch main. Local main started at `5f9b597`; fetched origin/main was `e9fd9de3fb6b533c9729457b708522992aca5c66`, two README-only commits ahead with no divergent local commit. Preserved the local README patch in a task-specific stash/file backup, fast-forwarded main without a merge commit, and reapplied the patch. Both remote additions and feature instructions were retained; the other 29 candidate files were verified unchanged by SHA-256.
