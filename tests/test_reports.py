@@ -174,7 +174,7 @@ class ReportTests(unittest.TestCase):
         old = self.reports.document("sample")
         self.source.write_text('[{"new":2}]')
         import runner.common
-        replace = os.replace
+        replace = runner.common._atomic_replace
         observed = []
         def inspect_replace(src, dest):
             if Path(dest).suffix == ".html":
@@ -182,7 +182,7 @@ class ReportTests(unittest.TestCase):
                 self.assertEqual(Path(src).parent, Path(dest).parent)
                 self.assertTrue(Path(src).read_bytes().endswith(b'</html>\n'))
             return replace(src, dest)
-        with patch("runner.common.os.replace", side_effect=inspect_replace):
+        with patch("runner.common._atomic_replace", side_effect=inspect_replace):
             self.reports.generate("sample", self.source)
         self.assertEqual(observed, [old])
         current = self.reports.document("sample")

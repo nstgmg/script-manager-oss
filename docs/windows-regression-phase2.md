@@ -1,5 +1,8 @@
 # Windows 회귀 안정화 — 2차
 
+후속 `1cc0d36` Windows 로그의 Run JSON 공유 충돌 분석·수정·검증 경계는
+[Windows Run metadata](windows-run-metadata.md)에 기록했다. 아래는 기존 2차 작업의 기록이다.
+
 기준은 `423a9b93b0c6853624ffa7c8a3eeefe3a024259e`의 Windows 전체 로그와 사용자 보고서다.
 Windows 10 / CPython 3.12.14 / 부모·자식 UTF-8 실행에서 **338개 부모 테스트 중 FAIL 9, ERROR 2, SKIP 50**이었으며,
 원문 `failures=12`는 payload subtest와 취소 cleanup 중복 실패를 포함한 이벤트 수다.

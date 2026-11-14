@@ -351,6 +351,9 @@ class Execution:
         return record
 
     def worker(self, job_id, run_id, lockfd):
+        # Finalization also uses Lifecycle when the first running save fails.
+        from runner.lifecycle import Lifecycle
+
         directory = self.run_dir(job_id, run_id)
         record = read_json(directory / "run.json")
         stopping = [False]
@@ -366,7 +369,6 @@ class Execution:
                 record.update(heartbeat_at=now(), pid=pid)
                 write_json(directory / "run.json", record)
 
-            from runner.lifecycle import Lifecycle
             env = environment(config, self.store.job_dir(job_id), self.store.root)
             env.update(Lifecycle(self.store).paths(job_id, run_id, create=True))
             if record.get("parameter_contract_version") == 1:

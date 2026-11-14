@@ -116,14 +116,15 @@ class ExternalReportPathTests(unittest.TestCase):
         old = self.reports.generate("sample",self.source,settings=self.settings)
         document = self.reports.document("sample")
         self.source.write_text('[{"title":"second"}]')
-        replace = os.replace
+        from runner.common import _atomic_replace
+        replace = _atomic_replace
         observed = []
         def inspect_replace(src,dest):
             if Path(dest).suffix == ".html":
                 self.assertEqual(Path(src).parent,self.external)
                 observed.append(Path(dest).read_bytes())
             return replace(src,dest)
-        with patch("runner.common.os.replace",side_effect=inspect_replace):
+        with patch("runner.common._atomic_replace",side_effect=inspect_replace):
             self.reports.generate("sample",self.source,settings=self.settings)
         self.assertEqual(observed,[document])
         document = self.reports.document("sample")
@@ -133,7 +134,7 @@ class ExternalReportPathTests(unittest.TestCase):
             if Path(dest).suffix == ".html":
                 raise PermissionError("external replace denied")
             return replace(src,dest)
-        with patch("runner.common.os.replace",side_effect=fail_replace):
+        with patch("runner.common._atomic_replace",side_effect=fail_replace):
             with self.assertRaises(PermissionError):
                 self.reports.generate("sample",self.source,settings=self.settings)
         self.assertEqual(self.reports.document("sample"),document)

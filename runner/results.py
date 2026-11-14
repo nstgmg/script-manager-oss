@@ -14,7 +14,7 @@ import re
 from time import perf_counter
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from runner.common import ManagerError, contained, identifier
+from runner.common import ManagerError, contained, identifier, read_json
 
 MAX_FILE_BYTES = 32 * 1024 * 1024
 SUPPORTED = {'.json', '.jsonl', '.csv', '.md', '.txt'}
@@ -162,7 +162,7 @@ class Results:
                     path = contained(folder, entry.name + '/run.json', True)
                     if path.stat().st_size > 2 * 1024 * 1024:
                         raise ValueError('실행 메타데이터 크기 초과')
-                    row = json.loads(path.read_text(encoding='utf-8'))
+                    row = read_json(path)
                     if not isinstance(row, dict) or row.get('id') != entry.name or row.get('job_id') != job_id:
                         raise ValueError('실행 메타데이터 식별자 불일치')
                     rows.append(row)

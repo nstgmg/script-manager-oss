@@ -141,7 +141,7 @@ def atomic_write(path, data, mode=0o600):
             f.write(data)
             f.flush()
             os.fsync(f.fileno())
-        os.replace(tmp, path)
+        _atomic_replace(tmp, path)
         if os.name != "nt":
             parent = os.open(str(path.parent), os.O_RDONLY)
             try:
@@ -157,9 +157,104 @@ def write_json(path, value):
     atomic_write(path, json.dumps(value, ensure_ascii=False, indent=2) + "\n")
 
 
+def _atomic_replace(source, target):
+    if os.name == "nt":
+        _windows_replace(source, target)
+    else:
+        os.replace(source, target)
+
+
+def _windows_file_api():
+    import ctypes
+    from ctypes import wintypes
+
+    kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+    kernel.CreateFileW.argtypes = [wintypes.LPCWSTR, wintypes.DWORD, wintypes.DWORD,
+                                  ctypes.c_void_p, wintypes.DWORD, wintypes.DWORD,
+                                  wintypes.HANDLE]
+    kernel.CreateFileW.restype = wintypes.HANDLE
+    kernel.CloseHandle.argtypes = [wintypes.HANDLE]
+    kernel.CloseHandle.restype = wintypes.BOOL
+    return kernel
+
+
+def _windows_replace(source, target):
+    """Atomically rename with open-target semantics on Windows 10/compatible FS.
+
+    Legacy MoveFileEx replacement can deny even delete-sharing target readers.
+    FileRenameInfoEx with POSIX semantics preserves their old handles while
+    publishing the new name. Unsupported filesystems/OSes fail closed: no
+    unlink/copy/overwrite fallback and no retry of access or sharing errors.
+    """
+    import ctypes
+    from ctypes import wintypes
+
+    class RenameInfo(ctypes.Structure):
+        # Fixed Win32 widths, native pointer alignment; WCHAR is UTF-16, not
+        # necessarily the host ctypes.c_wchar width in portable contract tests.
+        _fields_ = [("Flags", ctypes.c_uint32), ("RootDirectory", ctypes.c_void_p),
+                    ("FileNameLength", ctypes.c_uint32), ("FileName", ctypes.c_uint16 * 1)]
+
+    name = os.path.abspath(target).encode("utf-16-le", errors="surrogatepass")
+    buffer = ctypes.create_string_buffer(ctypes.sizeof(RenameInfo) + len(name))
+    info = RenameInfo.from_buffer(buffer)
+    info.Flags = 0x1 | 0x2  # REPLACE_IF_EXISTS | POSIX_SEMANTICS only.
+    info.FileNameLength = len(name)  # Bytes, excludes terminating UTF-16 NUL.
+    ctypes.memmove(ctypes.addressof(buffer) + RenameInfo.FileName.offset, name, len(name))
+
+    kernel = _windows_file_api()
+    kernel.SetFileInformationByHandle.argtypes = [wintypes.HANDLE, ctypes.c_int,
+                                                ctypes.c_void_p, wintypes.DWORD]
+    kernel.SetFileInformationByHandle.restype = wintypes.BOOL
+    handle = kernel.CreateFileW(str(source), 0x10000, 7, None, 3, 0x80, None)
+    if handle == ctypes.c_void_p(-1).value:
+        error = ctypes.WinError(ctypes.get_last_error())
+        error.filename = str(source)
+        raise error
+    try:
+        if not kernel.SetFileInformationByHandle(handle, 22, buffer, len(buffer)):  # FileRenameInfoEx
+            error = ctypes.WinError(ctypes.get_last_error())
+            error.filename, error.filename2 = str(source), str(target)
+            raise error
+    finally:
+        kernel.CloseHandle(handle)
+
+
+def _windows_read_opener(path, flags):
+    """Non-inheritable reader sharing read/write/delete with atomic publication.
+
+    Sharing is bilateral: a reader arriving during a rename must also allow
+    the writer's DELETE access. This grants no additional access to the reader
+    and does not bypass ACLs or an external handle's sharing policy.
+    """
+    import ctypes
+    import msvcrt
+
+    kernel = _windows_file_api()
+    handle = kernel.CreateFileW(path, 0x80000000, 0x1 | 0x2 | 0x4, None, 3, 0x80, None)
+    # GENERIC_READ; FILE_SHARE_READ | WRITE | DELETE; OPEN_EXISTING; NORMAL.
+    if handle == ctypes.c_void_p(-1).value:
+        error = ctypes.WinError(ctypes.get_last_error())
+        error.filename = path
+        raise error
+    try:
+        # On success the CRT fd owns the HANDLE; open() owns and closes the fd.
+        return msvcrt.open_osfhandle(handle, os.O_RDONLY | os.O_BINARY | os.O_NOINHERIT)
+    except BaseException:
+        kernel.CloseHandle(handle)
+        raise
+
+
+def open_atomic_read(path):
+    """Read UTF-8 metadata without blocking same-filesystem atomic replacement."""
+    return open(path, "r", encoding="utf-8",
+                opener=_windows_read_opener if os.name == "nt" else None)
+
+
 def read_json(path, default=None):
     try:
-        return json.loads(Path(path).read_text())
+        with open_atomic_read(path) as stream:
+            return json.load(stream)
     except FileNotFoundError:
         return default
 
