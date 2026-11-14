@@ -11,6 +11,7 @@ import io
 import json
 from pathlib import Path, PurePosixPath, PureWindowsPath
 import re
+import stat
 from time import perf_counter
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -159,8 +160,21 @@ class Results:
                 if not re.fullmatch(r'[0-9a-f]{32}', entry.name):
                     continue
                 try:
-                    path = contained(folder, entry.name + '/run.json', True)
-                    if path.stat().st_size > 2 * 1024 * 1024:
+                    # Resolve stable directories, never the atomically replaced
+                    # leaf: NTFS may report an old file's $Deleted name during
+                    # replacement. Do not accept that name as a path exception.
+                    for parent in (folder.parent, folder, entry):
+                        info = parent.lstat()
+                        if (not stat.S_ISDIR(info.st_mode)
+                                or getattr(info, 'st_file_attributes', 0) & 0x400):
+                            raise ManagerError('실행 디렉터리에 링크·junction·reparse point를 사용할 수 없습니다.')
+                    directory = contained(folder, entry.name, True)
+                    path = directory / 'run.json'
+                    info = path.lstat()
+                    if (not stat.S_ISREG(info.st_mode)
+                            or getattr(info, 'st_file_attributes', 0) & 0x400):
+                        raise ManagerError('실행 메타데이터는 링크·reparse point가 아닌 일반 파일이어야 합니다.')
+                    if info.st_size > 2 * 1024 * 1024:
                         raise ValueError('실행 메타데이터 크기 초과')
                     row = read_json(path)
                     if not isinstance(row, dict) or row.get('id') != entry.name or row.get('job_id') != job_id:
