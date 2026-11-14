@@ -9,7 +9,6 @@ import unittest
 from unittest.mock import patch
 import xml.etree.ElementTree as ET
 
-from deployments.remote_runtime import Controller
 from runner.common import ManagerError, digest, write_json
 from runner.installation import DESCRIPTION
 from runner.maintenance import Maintenance
@@ -157,6 +156,10 @@ class DoctorSystemd:
 
 class LinuxDoctorTests(unittest.TestCase):
     def setUp(self):
+        # Only Linux fixtures need the POSIX-only remote helper. Windows tests
+        # import DoctorTasks from this module and must not import fcntl.
+        from deployments.remote_runtime import Controller
+
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.base = Path(self.temp.name).resolve()

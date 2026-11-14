@@ -1,5 +1,53 @@
 # Validation records
 
+## Windows ownership test import isolation — 2026-11-15
+
+The owner reported native Windows import failure for
+`tests.test_windows_ownership` and `tests.test_windows_ownership_handoff` at
+`19c49b1`. Both import `DoctorTasks` from `tests.test_schedule_doctor_platforms`,
+whose top-level import of `deployments.remote_runtime.Controller` imports the
+POSIX-only `fcntl`. This is a test dependency leak, not a Windows scheduler or
+runner import dependency. `runner.common` already selects `msvcrt` on Windows;
+the standalone Linux SSH-target helper intentionally retains `fcntl`/POSIX locks.
+
+The only existing-code change moves the Controller import into
+`LinuxDoctorTests.setUp`, where it is used. No product code, Package helper,
+locking, remote API, OS schedule or operating data is changed. Linux tests still
+load and exercise the same Controller; no unsupported lock fallback or test skip
+was added. Other POSIX-specific test modules are not ported by this fix.
+
+`tests.test_windows_test_imports` starts separate interpreters to import/collect
+each affected test module while rejecting imports of `fcntl` and the remote
+helper. On this POSIX host it first loads common's legitimate local lock module;
+on Windows common selects msvcrt normally. Fresh processes ensure full-suite
+discovery/cache order cannot mask the indirect dependency. This is an import
+isolation simulation, not a native Windows execution result.
+
+Actual host: macOS ARM64 / existing venv Python 3.9.6. Targeted import, Windows
+ownership/handoff, Linux doctor and deployment/helper regressions: **44 passed**,
+including standalone remote-helper execution in a local POSIX subprocess, fake
+SSH/systemd and preservation/rollback cases. Actual Linux SSH/systemd and fixed
+native Windows execution remain unverified here. Native schedule opt-ins stayed
+unset.
+
+| Final check | Actual result on this host |
+| --- | --- |
+| Full Python suite, `.venv/bin/python -m unittest discover -v` | **326 tests: 319 passed, 7 skipped**, no failures/errors, 43.573s |
+| Node UI, `node --test tests/test_dashboard_ui.cjs` | **71 passed**, no failures/skips |
+| Product source preservation | No changes under runner/, deployments/ or dashboard/ |
+| Whitespace review | `git diff --check` passed |
+
+The skips are the Windows PowerShell parser, Windows ACL readback, Windows Task
+Scheduler integration, three opt-in launchd cases and one opt-in native maintenance
+case. Full-suite access covered isolated loopback/Chrome and existing read-only OS
+inventory checks, not native schedule changes. Local ignored logs:
+`.cache/windows-test-import-python.txt`, `.cache/windows-test-import-node.txt`.
+
+On Windows, verify with `.venv\Scripts\python.exe -m unittest tests.test_windows_test_imports tests.test_windows_ownership tests.test_windows_ownership_handoff -v`.
+This command uses mocked OS interfaces and must not be reported as native Task
+Scheduler registration/trigger verification. No push, deployment, native schedule
+change, credential read or production service control was performed.
+
 ## Windows Task Scheduler ownership — 2026-11-15
 
 Scope: ownership diagnosis and query-error messages, on top of `d3b2009` on
