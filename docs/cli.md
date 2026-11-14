@@ -4,6 +4,9 @@ Use `python -m runner [--root ROOT] COMMAND ...` from the code directory and the
 
 | Command | Supported purpose |
 | --- | --- |
+| schedule-doctor [--remove LABEL --confirm FINGERPRINT] | read-only native inventory; explicitly confirmed owned orphans only |
+| reset [--confirm PLAN_HASH] | preview then permanently clear this installation’s user data after verified OS removal |
+| uninstall [--confirm PLAN_HASH] | same safe cleanup, then instructions to exit and manually remove program folder |
 | list / get JOB | definitions, normalized config, YAML and etag |
 | create JOB [--name NAME] [--file YAML] | reject existing ID, create definition + default main.py/README |
 | update JOB --file YAML --etag ETAG | validate and replace complete YAML using latest etag |
@@ -50,3 +53,11 @@ Local OS schedule changes require approval. Calendar uses times HH:MM, weekdays 
 Dashboard: `python -m dashboard --root . --port 8765`, only on an explicit service request and after existing service/root checks. Direct HTTP changes require session CSRF and existing Host/Origin policy; never print session responses. Jobs run in captured source and dependencies are not installed automatically.
 
 Queued/202 means accepted. Keep Run ID, verify succeeded/exit 0/logs/Output. Retry observation rather than submission. Restricted agent network limits are inherited by workers; use approved existing resident execution if needed, otherwise report limits. A service is not required for ordinary CLI Jobs, saved results or HTML rendering.
+
+## 초기화와 예약 복구
+
+See [초기화·완전 삭제](uninstall.md) before destructive maintenance. Without --confirm, reset/uninstall are previews. Approval must use the current preview hash; mismatches/blockers abort before native writes. schedule-doctor diagnoses current-user launchd, Windows tasks, or Linux deployment systemd user units without the original project. It never removes healthy/unknown reservations; only one owned orphan is removed with its current fingerprint. First normal CLI use and Dashboard startup report diagnostics without deletion. Linux local Job schedule registration remains unsupported; no SSH is performed for diagnosis or local reset.
+
+Dashboard exposes GET /api/schedule-doctor, GET /api/reset and CSRF-protected POST /api/reset with {"confirm":"PLAN_HASH"}. Failures after approval include phase/deleted/remaining; OS removal failures occur before user data deletion. Locks and installation identity persist through reset. Existing per-Job scheduling APIs retain their checksum/CAS contracts and now verify native removal.
+
+Approved maintenance rechecks the complete target inventory after OS removal (`verify-data-plan`) and removes only approved entries, reporting `deleted_entries` on partial failure. Unconfirmed deployment receipts and applying/degraded schedule operations block cleanup. Current local checksums/installation IDs and actual loaded launchd/systemd invocations are checked; Windows full XML checksums fail closed on export drift. Existing scheduler application/removal/rollback also refuses running native processes and externally replaced definitions. Observer disconnects do not cancel or resubmit reset. See the recovery limitations in [uninstall](uninstall.md).

@@ -15,6 +15,8 @@ class LaunchctlFake:
         self.disabled_services = set()
         self.calls = []
         self.fail_next_bootstrap = False
+        self.paths = {}
+        self.definitions = {}
 
     @property
     def loaded(self):
@@ -32,7 +34,13 @@ class LaunchctlFake:
         if args[:2] == ["launchctl", "enable"]:
             self.disabled_services.discard(args[2].split("/")[-1])
         if args[:2] == ["launchctl", "print"]:
-            rc = 0 if args[2].split("/")[-1] in self.services else 113
+            label = args[2].split("/")[-1]
+            rc = 0 if label in self.services else 113
+            if rc == 0 and label in self.definitions:
+                data = self.definitions[label]
+                return subprocess.CompletedProcess(args, 0, "path = " + str(self.paths[label])
+                    + "\nprogram = " + data["ProgramArguments"][0] + "\nworking directory = " + data["WorkingDirectory"]
+                    + "\narguments = {\n" + "\n".join(data["ProgramArguments"]) + "\n}\n", "")
         if args[:2] == ["launchctl", "bootout"]:
             self.services.discard(args[2].split("/")[-1])
         if args[:2] == ["launchctl", "bootstrap"]:
@@ -40,7 +48,10 @@ class LaunchctlFake:
                 self.fail_next_bootstrap = False
                 rc, error = 1, "injected bootstrap failure"
             else:
-                self.services.add(plistlib.loads(Path(args[-1]).read_bytes())["Label"])
+                data = plistlib.loads(Path(args[-1]).read_bytes())
+                self.services.add(data["Label"])
+                self.paths[data["Label"]] = Path(args[-1]).resolve()
+                self.definitions[data["Label"]] = data
         return subprocess.CompletedProcess(args, rc, "", error)
 
 

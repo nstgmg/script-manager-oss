@@ -823,3 +823,82 @@ test('unchanged polling keeps run buttons, keyboard focus and list scroll positi
   assert.equal(app.element('runs').children[0].children[0],button);
   assert.equal(app.element('runs').scrollTop,120);
 });
+
+test('reset requires a fresh preview, typed confirmation and final approval',async()=>{
+  const app=dashboard(),calls=[];
+  const diagnosis={counts:{healthy:1,orphan:0,unknown:0},errors:[],schedules:[]};
+  app.context.api=async(path,method,body)=>{
+    calls.push({path,method,body});
+    return method==='POST' ? {success:true,deleted:['/project/jobs']} : {root:'/project',plan_hash:'reviewed',blockers:[],schedules:[],delete:[{path:'/project/jobs',entries:2,bytes:20}],doctor:diagnosis};
+  };
+  await app.element('reset-execute').onclick();assert.equal(calls.length,0);
+  await app.element('reset-preview').onclick();
+  app.element('reset-confirm').value='wrong';app.element('reset-confirm').oninput();
+  assert.equal(app.element('reset-execute').disabled,true);
+  app.element('reset-confirm').value='초기화';app.element('reset-confirm').oninput();
+  assert.equal(app.element('reset-execute').disabled,false);
+  app.context.approve=async()=>false;await app.element('reset-execute').onclick();
+  assert.equal(calls.filter(c=>c.method==='POST').length,0);
+  app.context.approve=async()=>true;await app.element('reset-execute').onclick();
+  assert.equal(calls.filter(c=>c.method==='POST').length,1);
+  assert.equal(calls.find(c=>c.method==='POST').body.confirm,'reviewed');
+  assert.equal(app.element('reset-execute').disabled,true);
+  assert.match(app.element('reset-result').textContent,/초기화 완료/);
+  assert.equal(app.element('reset-reload').hidden,false);
+});
+test('reset blockers cannot be bypassed by typing; refresh invalidates old approval',async()=>{
+  const app=dashboard();
+  app.context.api=async()=>({root:'/project',plan_hash:'old',blockers:['running'],schedules:[],delete:[],doctor:{counts:{},errors:[],schedules:[]}});
+  await app.element('reset-preview').onclick();
+  app.element('reset-confirm').value='초기화';app.element('reset-confirm').oninput();
+  assert.equal(app.element('reset-execute').disabled,true);
+  assert.match(app.element('reset-blockers').textContent,/running/);
+  app.context.api=async()=>({counts:{},errors:[],schedules:[]});
+  await app.context.refreshDoctor();
+  assert.equal(app.element('reset-review').hidden,true);
+  assert.equal(vm.runInContext('resetPlan',app.context),undefined);
+});
+test('reset errors display failed phase and remaining paths and require new preview',async()=>{
+  const app=dashboard();
+  vm.runInContext('resetPlan={plan_hash:"reviewed",blockers:[]}',app.context);
+  app.element('reset-confirm').value='초기화';
+  app.context.approve=async()=>true;
+  app.context.api=async()=>{throw Object.assign(new Error('OS failure'),{details:{phase:'remove-schedules',remaining:['/project/jobs'],error:'OS failure'}});};
+  await app.element('reset-execute').onclick();
+  assert.equal(app.element('reset-result').hidden,false);
+  assert.match(app.element('reset-result').textContent,/remove-schedules/);
+  assert.match(app.element('reset-result').textContent,/\/project\/jobs/);
+  assert.equal(app.element('reset-execute').disabled,true);
+  assert.equal(vm.runInContext('resetPlan',app.context),undefined);
+});
+test('doctor renders untrusted OS strings as text and never submits deletion',()=>{
+  const app=dashboard();
+  app.context.renderDoctor({counts:{orphan:1,unknown:1},errors:[],schedules:[{id:'<img onerror=attack()>',status:'unknown',reason:'<script>attack()</script>'}]});
+  assert.equal(app.element('doctor-banner').hidden,false);
+  assert.match(app.element('doctor-rows').textContent,/<img onerror=attack\(\)>/);
+  assert.match(app.element('doctor-rows').textContent,/확인 불가/);
+});
+
+test('reset confirmation holds the reviewed plan and blocks competing preview requests',async()=>{
+  const app=dashboard();let approveNow,posts=0;
+  vm.runInContext('resetPlan={plan_hash:"reviewed",blockers:[]}',app.context);
+  app.element('reset-confirm').value='초기화';
+  app.context.approve=()=>new Promise(resolve=>approveNow=resolve);
+  app.context.api=async(path,method,body)=>{if(method==='POST'){posts++;assert.equal(body.confirm,'reviewed');}return {success:true};};
+  const work=app.element('reset-execute').onclick();
+  await app.element('reset-preview').onclick();
+  await app.element('reset-execute').onclick();
+  assert.equal(posts,0);
+  approveNow(true);await work;
+  assert.equal(posts,1);
+});
+test('connection loss reports uncertain completion and cannot automatically resubmit reset',async()=>{
+  const app=dashboard();let posts=0;
+  vm.runInContext('resetPlan={plan_hash:"reviewed",blockers:[]}',app.context);
+  app.element('reset-confirm').value='초기화';app.context.approve=async()=>true;
+  app.context.api=async()=>{posts++;throw new Error('network disconnected');};
+  await app.element('reset-execute').onclick();
+  assert.match(app.element('reset-result').textContent,/계속되었거나 완료/);
+  assert.match(app.element('reset-result').textContent,/자동 재요청하지/);
+  await app.element('reset-execute').onclick();assert.equal(posts,1);
+});

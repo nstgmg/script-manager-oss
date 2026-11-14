@@ -23,6 +23,8 @@ class FakeTasks:
         self.fail_delete = False
 
     def __call__(self, args, **_):
+        if args[0] == "powershell.exe":
+            return subprocess.CompletedProcess(args, 0, "3", "")
         action = args[1].lower()
         if action == "/query" and "/TN" in args:
             name = args[args.index("/TN") + 1]

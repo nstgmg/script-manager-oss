@@ -93,6 +93,8 @@ Git, Python, 소스와 의존성을 내려받을 네트워크 접근이 필요�
 
 기존 설치의 업데이트는 재설치 대신 [UPDATE.md](UPDATE.md)를 따릅니다. 에이전트에게 “Script Manager 업데이트 확인해 줘.”라고 하면 변경 내용과 계획을 안내하고, “Script Manager 업데이트해 줘.”라고 명시하면 안전 점검 후 적용합니다. 기존 작업·예약·데이터·로컬 수정을 보존하며 자동 업데이트나 자동 재시작은 하지 않습니다.
 
+모든 작업과 데이터를 비우고 계속 쓰려면 `reset` 또는 Dashboard의 **관리 · 초기화**를 사용합니다. 프로그램을 제거하려면 `uninstall`로 예약 해제와 데이터 정리를 검증한 뒤 정상 종료하고 폴더를 삭제하세요. 폴더를 이미 지웠다면 재설치 후 `schedule-doctor`로 남은 예약을 진단합니다. 삭제 작업은 미리보기와 명시적 승인을 거치고 실행 중 작업·미완료 관리 기록이 있으면 중단하며, [삭제 범위와 OS별 복구 방법](docs/uninstall.md)을 먼저 확인하세요.
+
 ## 지원 OS와 검증 상태
 
 아래는 [최신 검증 기록](docs/validation.md#v010-publication-gate--2026-11-14)을 반영한 범위입니다. 구현되어 있다는 사실과 실제 환경에서 검증했다는 사실을 구분합니다.
@@ -115,7 +117,7 @@ macOS 예약의 지정 요일·시각 도달에 따른 실행, 절전 복귀·�
 
 - [v0.1.0 Release](https://github.com/nstgmg/script-manager-oss/releases/tag/v0.1.0) · [Release Notes](docs/releases/v0.1.0.md) · [전체 Releases](https://github.com/nstgmg/script-manager-oss/releases)
 - [사용자 가이드](USER_GUIDE.md) · [할 수 있는 일과 한계](docs/capabilities.md)
-- [설치·문제 해결](INSTALL.md) · [버전·업데이트](UPDATE.md)
+- [설치·문제 해결](INSTALL.md) · [버전·업데이트](UPDATE.md) · [초기화·완전 삭제·예약 복구](docs/uninstall.md)
 - [에이전트 지침](AGENTS.md) · [스크립트 작성](docs/script-authoring.md)
 - [CLI](docs/cli.md) · [운영](docs/operations.md) · [실행 입력](docs/run-parameters.md)
 - [결과 조회](docs/result-queries.md) · [HTML 보고서](docs/html-reports.md)

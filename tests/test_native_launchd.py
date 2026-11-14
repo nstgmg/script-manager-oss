@@ -3,6 +3,7 @@ import os
 from pathlib import Path
 import platform
 import plistlib
+import re
 import subprocess
 import sys
 import tempfile
@@ -13,6 +14,17 @@ from runner.common import ManagerError
 from runner.execution import Execution
 from runner.schedule import Scheduler
 from runner.store import Store, default_job
+
+
+def wait_idle(services, timeout=10):
+    """A terminal Run does not imply that its launchd CLI wrapper has exited yet."""
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        states = [subprocess.run(["launchctl", "print", service], capture_output=True, text=True) for service in services]
+        if all(state.returncode == 113 or state.returncode == 0 and not re.search(r"^\s*pid = [1-9][0-9]*\s*$", state.stdout, re.M) for state in states):
+            return
+        time.sleep(.1)
+    raise AssertionError("Test reservation process did not exit naturally; never force it out to apply a schedule")
 
 
 @unittest.skipUnless(platform.system() == "Darwin" and os.environ.get("SCRIPT_MANAGER_TEST_LAUNCHD") == "1",
@@ -46,6 +58,7 @@ class NativeLaunchdTests(unittest.TestCase):
                     time.sleep(.2)
                 self.assertIsNotNone(completed, "StartInterval did not execute the Runner")
                 self.assertEqual(completed["state"], "succeeded")
+                wait_idle([service])
                 calendar = {"enabled": True, "times": ["23:59"], "weekdays": [7]}
                 updated = store.update_schedule(job["id"], calendar, job["etag"])
                 scheduler.apply(job["id"], updated["etag"])
@@ -84,6 +97,7 @@ class NativeLaunchdTests(unittest.TestCase):
                     time.sleep(0.1)
                 self.assertIsNotNone(completed, "launchd did not execute the Runner")
                 self.assertEqual(completed["state"], "succeeded")
+                wait_idle([service])
                 scheduler.remove("native-test")
                 self.assertFalse(scheduler.observed("native-test")["loaded"])
             finally:
@@ -113,6 +127,7 @@ class NativeLaunchdTests(unittest.TestCase):
                     time.sleep(.1)
                 self.assertTrue(runs and runs[0]["state"] == "succeeded", "Native interval did not fire")
                 self.assertEqual(runs[0]["schedule_id"], "check")
+                wait_idle(services)
                 item = store.get(job)
                 scheduler.save(job, "check", {**interval(), "interval_seconds": 3600}, item["etag"])
                 self.assertEqual(scheduler.state(job, "morning"), original)
@@ -131,6 +146,7 @@ class NativeLaunchdTests(unittest.TestCase):
                 self.assertEqual(len(execution.list(job)), 2)
                 while execution.get(job, manual["id"])["state"] in ("queued", "running"):
                     time.sleep(.1)
+                wait_idle(services)
                 for enabled in (False, True):
                     item = store.get(job)
                     scheduler.save(job, "check", {**interval(), "enabled": enabled}, item["etag"])

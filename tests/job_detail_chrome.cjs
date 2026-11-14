@@ -2,7 +2,7 @@
 const {spawn} = require('node:child_process');
 const fs = require('node:fs');
 const {pathToFileURL} = require('node:url');
-const [chrome, fixture, widthText, profile, screenshot] = process.argv.slice(2);
+const [chrome, fixture, widthText, profile, screenshot, marker = "job-detail-browser-result"] = process.argv.slice(2);
 const width = Number(widthText);
 const child = spawn(chrome, ['--headless=new', '--disable-gpu', '--no-first-run',
   '--no-default-browser-check', '--disable-background-networking', '--disable-sync',
@@ -46,7 +46,7 @@ child.on('exit', code=>{
     await send('Page.navigate',{url:pathToFileURL(fixture).href},sessionId);await loaded;
     const result=await send('Runtime.evaluate',{expression:`(async()=>{
       for(let i=0;i<600;i++){
-        const result=document.getElementById('job-detail-browser-result');
+        const result=document.getElementById(${JSON.stringify(marker)});
         if(result)return {text:result.textContent,width:innerWidth,scrollWidth:document.documentElement.scrollWidth};
         await new Promise(resolve=>setTimeout(resolve,50));
       }
@@ -57,7 +57,7 @@ child.on('exit', code=>{
     if(screenshot){
       const image=await send('Page.captureScreenshot',{format:'png',captureBeyondViewport:false},sessionId);
       fs.writeFileSync(screenshot,Buffer.from(image.data,'base64'));
-      for(const section of ['local-runs','html-reports','packages-section','lifecycle-section','deployment-section']){
+      for(const section of (marker === 'job-detail-browser-result' ? ['local-runs','html-reports','packages-section','lifecycle-section','deployment-section'] : ['reset-title'])){
         await send('Runtime.evaluate',{expression:`(async()=>{
           const section=document.getElementById('${section}');
           if(section.tagName==='DETAILS')section.open=true;

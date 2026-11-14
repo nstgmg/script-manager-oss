@@ -21,6 +21,8 @@ class Dashboard(ThreadingHTTPServer):
 
     def __init__(self, root, port=8765):
         self.store = Store(root)
+        from runner.schedule_doctor import ScheduleDoctor
+        self.schedule_diagnosis = ScheduleDoctor(self.store).scan()
         self.token = secrets.token_urlsafe(32)
         super().__init__(("127.0.0.1", port), Handler)
 
@@ -121,6 +123,8 @@ class Handler(BaseHTTPRequestHandler):
                             len(parts) == 4 and parts[:2] == ["api", "jobs"] and parts[3] == "results")
             value, status = self.api(parts, body, parse_qs(url.query, keep_blank_values=result_query))
             return self.send(status, value)
+        except (BrokenPipeError, ConnectionResetError):
+            return  # A disconnected observer must not trigger a second response or mutation.
         except ManagerError as exc:
             self.send(exc.status, {"error": str(exc)})
         except (OSError, ValueError) as exc:
@@ -137,7 +141,23 @@ class Handler(BaseHTTPRequestHandler):
         if parts == ["api", "session"] and method == "GET":
             system = platform.system()
             return {"csrf": self.server.token, "root": str(store.root), "os": system,
+                    "schedule_diagnosis": getattr(self.server, "schedule_diagnosis", None),
                     "scheduler": "launchd" if system == "Darwin" else "Windows Task Scheduler" if system == "Windows" else "unsupported"}, 200
+        if parts == ["api", "schedule-doctor"] and method == "GET":
+            from runner.schedule_doctor import ScheduleDoctor
+            return ScheduleDoctor(store).scan(), 200
+        if parts == ["api", "reset"]:
+            from runner.maintenance import Maintenance
+            if query or set(body) - {"confirm"}:
+                raise ManagerError("reset에는 confirm만 지정할 수 있습니다.")
+            manager = Maintenance(store)
+            if method == "GET":
+                return manager.preview(), 200
+            if method == "POST":
+                if not isinstance(body.get("confirm"), str) or not body["confirm"]:
+                    raise ManagerError("미리보기의 확인 해시가 필요합니다.", 428)
+                result = manager.execute("reset", body["confirm"])
+                return result, 200 if result["success"] else 409
         if parts == ["api", "project-directory", "open"] and method == "POST":
             if body or query:
                 raise ManagerError("프로젝트 폴더 열기에는 인자를 지정할 수 없습니다.")

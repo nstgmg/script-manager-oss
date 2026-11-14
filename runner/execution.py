@@ -405,17 +405,20 @@ class Execution:
         finally:
             record["finished_at"] = now()
             write_json(directory / "run.json", record)
-            if os.name == "nt":
-                lease = self.store.runtime / "locks" / (job_id + ".run.active")
-                if read_json(lease, {}).get("run_id") == run_id:
-                    lease.unlink(missing_ok=True)
-            elif lockfd >= 0:
-                os.close(lockfd)
-            try:
-                Lifecycle(self.store).automatic(job_id)
-            except Exception as exc:
-                record["lifecycle_error"] = str(exc)
-                write_json(directory / "run.json", record)
+            # Transfer protection from the inherited run lock/lease to the project
+            # gate without a gap. Automatic cleanup needs to acquire its own run lock.
+            with self.store.maintenance_lock():
+                if os.name == "nt":
+                    lease = self.store.runtime / "locks" / (job_id + ".run.active")
+                    if read_json(lease, {}).get("run_id") == run_id:
+                        lease.unlink(missing_ok=True)
+                elif lockfd >= 0:
+                    os.close(lockfd)
+                try:
+                    Lifecycle(self.store).automatic(job_id)
+                except Exception as exc:
+                    record["lifecycle_error"] = str(exc)
+                    write_json(directory / "run.json", record)
 
     def run_dir(self, job_id, run_id):
         identifier(job_id)

@@ -10,6 +10,7 @@ import sys
 import uuid
 
 from runner.common import ManagerError, atomic_write, contained, digest, identifier, read_json, write_json
+from runner.installation import MARKER, metadata
 from runner.store import schedules, schedule_hash, migrate_config, load_yaml, dump_yaml, validate, validate_schedule
 
 
@@ -64,19 +65,24 @@ class Scheduler:
             "EnvironmentVariables": {"PATH": os.environ.get("PATH", "/usr/local/bin:/usr/bin:/bin")},
             "StandardOutPath": "/dev/null", "StandardErrorPath": "/dev/null",
         }
+        plist[MARKER] = metadata(self.store, job_id, sid, generation)
         if entry["type"] == "interval":
             plist["StartInterval"] = entry["interval_seconds"]
         else:
             plist["StartCalendarInterval"] = [
                 {"Weekday": day % 7, "Hour": int(t[:2]), "Minute": int(t[3:])}
                 for day in entry.get("weekdays", range(1, 8)) for t in entry.get("times", [])]
+        plist[MARKER]["definition_sha256"] = digest(plistlib.dumps({k: v for k, v in plist.items() if k != MARKER}))
         return {"enabled": entry["enabled"], "label": label, "schedule_id": sid,
                 "generation": generation, "schedule_hash": schedule_hash(entry), "etag": item["etag"],
                 "path": str(self.agents / (label + ".plist")), "plist": plistlib.dumps(plist).decode(),
                 "timezone": "host-local"}
 
     def call(self, args, check=True):
-        result = self.command(args, capture_output=True, text=True, timeout=20)
+        try:
+            result = self.command(args, capture_output=True, text=True, timeout=20)
+        except (OSError, subprocess.SubprocessError) as exc:
+            raise ManagerError("스케줄 명령 실행·관찰 실패: " + str(exc), 502) from exc
         if check and result.returncode:
             raise ManagerError("스케줄 명령 실패: " + result.stderr.strip(), 502)
         return result
@@ -161,6 +167,22 @@ class Scheduler:
                 return True
         return False
 
+    def _guard_live(self, path, raw, service):
+        """Never bootout a running or differently loaded process, including rollback."""
+        result = self.call(["launchctl", "print", service], False)
+        if result.returncode == 113:
+            return False
+        if result.returncode or raw is None:
+            raise ManagerError("로드된 예약의 소유권·상태를 확인하지 못했습니다.", 409)
+        from runner.schedule_doctor import ScheduleDoctor
+        try:
+            ScheduleDoctor(self.store, self)._mac_loaded(result, path, plistlib.loads(raw))
+        except (ValueError, TypeError, plistlib.InvalidFileException) as exc:
+            raise ManagerError("로드된 실행 정의가 달라 예약을 보존합니다.", 409) from exc
+        if re.search(r"^\s*pid = [1-9][0-9]*\s*$", result.stdout, re.M):
+            raise ManagerError("OS 예약 프로세스가 실행 중입니다. 강제 종료하지 않습니다.", 409)
+        return True
+
     def _preflight(self, job_id, plans):
         """Read-only ownership check, also performed before any migration write."""
         snapshots = {}
@@ -175,6 +197,8 @@ class Scheduler:
                 raise ManagerError("외부에서 수정되었거나 소유권을 확인할 수 없는 LaunchAgent를 보존했습니다: " + str(path), 409)
             if state["loaded"] and old is None:
                 raise ManagerError("파일 없는 OS 예약의 소유권을 확인할 수 없습니다: " + self.label(job_id, sid), 409)
+            if state["loaded"]:
+                self._guard_live(path, old, "gui/" + str(os.getuid()) + "/" + self.label(job_id, sid))
             snapshots[sid] = (old, state_path.read_bytes() if state_path.exists() else None, state["loaded"], state.get("os_disabled", False))
         return snapshots
 
@@ -186,9 +210,12 @@ class Scheduler:
         try:
             # Disable old invocations before installing any replacement.
             for sid, plan in plans.items():
-                touched.append(sid)
                 path = contained(self.agents, self.label(job_id, sid) + ".plist")
                 service = "gui/" + str(os.getuid()) + "/" + self.label(job_id, sid)
+                current = path.read_bytes() if path.exists() else None
+                if current != snapshots[sid][0] or self._guard_live(path, current, service) != snapshots[sid][2]:
+                    raise ManagerError("OS 적용 직전 예약 변경 감지; 보존합니다.", 409)
+                touched.append(sid)
                 if snapshots[sid][2]:
                     self.call(["launchctl", "bootout", service])
                 if plan.get("enabled"):
@@ -202,6 +229,9 @@ class Scheduler:
                              "schedule_hash": plan["schedule_hash"], "generation": plan["generation"],
                              "plist_sha256": digest(path.read_bytes())}
                 else:
+                    check = self.call(["launchctl", "print", service], False)
+                    if check.returncode != 113:
+                        raise ManagerError("OS 예약 해제를 검증하지 못했습니다: " + service, 502)
                     path.unlink(missing_ok=True)
                     state = {"applied": False, "phase": "removed"}
                 write_json(self.state_path(job_id, sid), state)
@@ -212,7 +242,12 @@ class Scheduler:
                     path = contained(self.agents, self.label(job_id, sid) + ".plist")
                     service = "gui/" + str(os.getuid()) + "/" + self.label(job_id, sid)
                     old, state_data, loaded, disabled = snapshots[sid]
-                    self.call(["launchctl", "bootout", service], False)
+                    current = path.read_bytes() if path.exists() else None
+                    allowed = (old, plans[sid].get("plist", "").encode() if plans[sid].get("enabled") else None)
+                    if current not in allowed:
+                        raise ManagerError("복구 중 외부 예약 변경 감지; 외부 정의를 보존합니다.", 409)
+                    if self._guard_live(path, current, service):
+                        self.call(["launchctl", "bootout", service])
                     if old is None:
                         path.unlink(missing_ok=True)
                     else:

@@ -17,6 +17,7 @@ const scheduleCards = new Map();
 let scheduleRefreshTask;
 let localScheduler = "launchd";
 let timelineJobSignature;
+let resetPlan, resetBusy = false;
 const terminal = new Set(["succeeded","failed","timed_out","cancelled","interrupted"]);
 function closeNotice() {
   clearTimeout(noticeTimer);
@@ -36,9 +37,9 @@ function showView(next) {
   view = next;
   $("content").focus?.({preventScroll:true});
   window.scrollTo?.({top:0});
-  for (const [id, target] of [["home-view", "home"], ["jobs-view", "jobs"], ["detail", "detail"], ["trash-view", "trash"], ["schedules-view", "schedules"]]) $(id).hidden = next !== target;
-  for (const [id, active] of [["home-menu", next === "home"], ["jobs-menu", next === "jobs" || next === "detail"], ["trash-menu", next === "trash"], ["schedule-menu", next === "schedules"]]) $(id).setAttribute("aria-pressed", String(active));
-  const label = {home:"Dashboard", jobs:"Jobs", detail:"Job 상세", schedules:"Schedule", trash:"Trash"}[next];
+  for (const [id, target] of [["home-view", "home"], ["jobs-view", "jobs"], ["detail", "detail"], ["trash-view", "trash"], ["schedules-view", "schedules"], ["maintenance-view", "maintenance"]]) $(id).hidden = next !== target;
+  for (const [id, active] of [["home-menu", next === "home"], ["jobs-menu", next === "jobs" || next === "detail"], ["trash-menu", next === "trash"], ["schedule-menu", next === "schedules"], ["maintenance-menu", next === "maintenance"]]) $(id).setAttribute("aria-pressed", String(active));
+  const label = {home:"Dashboard", jobs:"Jobs", detail:"Job 상세", schedules:"Schedule", trash:"Trash", maintenance:"관리 · 초기화"}[next];
   $("page-label").textContent = label;
   document.title = label + " · Script Manager";
 }
@@ -56,7 +57,8 @@ async function navigate(next) {
   if (!(await leaveEditor())) return;
   ++loadSequence;
   showView(next);
-  await refreshView();
+  if (next === "maintenance") await refreshDoctor();
+  else await refreshView();
 }
 function approve(message) {
   return new Promise(resolve => {
@@ -71,7 +73,7 @@ function approve(message) {
 async function api(path, method = "GET", body) {
   const response = await fetch("/api/" + path, {method, headers: {"Content-Type":"application/json","X-CSRF-Token":token || ""}, body:body === undefined ? undefined : JSON.stringify(body)});
   const value = await response.json();
-  if (!response.ok) { const error = new Error(value.error || "요청 실패"); error.status = response.status; throw error; }
+  if (!response.ok) { const error = new Error(value.error || "요청 실패"); error.status = response.status; error.details = value; throw error; }
   return value;
 }
 function safe(action) {
@@ -613,7 +615,7 @@ async function logs() {
   } catch(error) { if(isCurrent()) $("logs").textContent="로그 조회 실패: "+error.message; }
 }
 $("yaml").oninput=()=>{dirty=true; updateJobEditMode(); invalidatePlan();};
-$("refresh").onclick=safe(refreshView);
+$("refresh").onclick=safe(async()=>{if(view==="maintenance")await refreshDoctor();else await refreshView();});
 $("new-job").onclick = () => { $("create-error").hidden=true; $("create-dialog").showModal(); };
 $("create-cancel").onclick = () => $("create-dialog").close();
 $("create").onsubmit = safe(async () => {
@@ -679,6 +681,7 @@ window.addEventListener("beforeunload", event=>{if(dirty || lifecycleDirty || se
 $("open-root").onclick=safe(async()=>{await api("project-directory/open","POST",{}); notice("프로젝트 폴더 열기를 요청했습니다.");});
 $("copy-root").onclick=safe(async()=>{await navigator.clipboard.writeText($("root").textContent); notice("프로젝트 경로를 복사했습니다.");});
 safe(async()=>{const session=await api("session"); token=session.csrf; $("root").textContent=session.root;
+  if (session.schedule_diagnosis) renderDoctor(session.schedule_diagnosis);
   $("open-root").disabled=false; $("copy-root").disabled=false;
   localScheduler=session.scheduler; $("schedule-environment").textContent=session.os+" · "+session.scheduler;
   if(session.os==="Windows") { $("schedule-seconds").min="60"; $("schedule-seconds").max=String(31*86400); }
@@ -689,6 +692,7 @@ safe(async()=>{const session=await api("session"); token=session.csrf; $("root")
 setInterval(()=>{if(!document.hidden) safe(refreshView)();},3000);
 
 async function refreshView() {
+  if (view === "maintenance") return;
   await jobs();
   if (view === "home") await refreshOverview();
   else if (view === "trash") await refreshTrash();
@@ -1247,3 +1251,71 @@ $("report-preview").onclick=()=>{
 $("report-preview-close").onclick=closeReportPreview;
 $("report-folder").onclick=safe(async()=>{await api(path("report/open-directory"),"POST",{});notice("보고서 폴더 열기를 요청했습니다.");});
 $("report-copy").onclick=safe(async()=>{await navigator.clipboard.writeText(reportPath);notice("보고서 경로를 복사했습니다.");});
+
+
+function renderDoctor(diagnosis) {
+  const labels = {healthy:"정상", orphan:"고아 의심", unknown:"확인 불가"};
+  const counts = diagnosis.counts || {};
+  const attention = (counts.orphan || 0) + (counts.unknown || 0) + diagnosis.errors.length;
+  $("doctor-banner").hidden = false;
+  $("doctor-banner-message").textContent = (attention ? "OS 예약 확인 필요" : "OS 예약 진단 완료") + " · 정상 " + (counts.healthy || 0) + "건 · 고아 의심 " + (counts.orphan || 0) + "건 · 확인 불가 " + (counts.unknown || 0) + "건" + (diagnosis.errors.length ? " · OS 조회 오류" : "") + ". 자동 삭제하지 않았습니다.";
+  $("doctor-summary").textContent = diagnosis.errors.length ? "진단 실패: " + diagnosis.errors.join(" / ") : diagnosis.notice || "정상 " + (counts.healthy || 0) + "건 · 고아 의심 " + (counts.orphan || 0) + "건 · 확인 불가 " + (counts.unknown || 0) + "건";
+  $("doctor-rows").replaceChildren();
+  for (const row of diagnosis.schedules) {
+    const tr = document.createElement("tr");
+    for (const text of [row.id, labels[row.status], (row.root || row.path || "") + " · " + row.reason]) {
+      const td = document.createElement("td"); td.textContent = text; tr.append(td);
+    }
+    $("doctor-rows").append(tr);
+  }
+}
+function invalidateReset() {
+  resetPlan = undefined; $("reset-execute").disabled = true; $("reset-confirm").value = "";
+}
+async function refreshDoctor() {
+  if (resetBusy) throw new Error("초기화 확인·처리가 끝난 뒤 다시 진단하세요.");
+  invalidateReset(); $("reset-review").hidden = true;
+  renderDoctor(await api("schedule-doctor"));
+}
+$("maintenance-menu").onclick = safe(() => navigate("maintenance"));
+$("doctor-banner-open").onclick = safe(() => navigate("maintenance"));
+$("doctor-refresh").onclick = safe(refreshDoctor);
+$("reset-preview").onclick = safe(async () => {
+  if (resetBusy) throw new Error("초기화 확인·처리가 끝난 뒤 미리보기를 요청하세요.");
+  invalidateReset(); $("reset-result").hidden = true;
+  resetPlan = await api("reset"); renderDoctor(resetPlan.doctor);
+  $("reset-root").textContent = "초기화 대상 프로젝트: " + resetPlan.root + " · OS 예약 " + resetPlan.schedules.length + "건";
+  $("reset-paths").replaceChildren();
+  for (const entry of resetPlan.delete) {
+    const li = document.createElement("li"); li.textContent = entry.path + " · " + entry.entries + "개 항목 · " + bytes(entry.bytes); $("reset-paths").append(li);
+  }
+  $("reset-blockers").textContent = resetPlan.blockers.join(" / ");
+  $("reset-review").hidden = false;
+});
+$("reset-confirm").oninput = () => { $("reset-execute").disabled = !resetPlan || resetPlan.blockers.length > 0 || $("reset-confirm").value !== "초기화"; };
+$("reset-execute").onclick = safe(async () => {
+  if (resetBusy || !resetPlan || resetPlan.blockers.length || $("reset-confirm").value !== "초기화") return;
+  const approvedPlan = resetPlan;
+  resetBusy = true;
+  let submitted = false;
+  try {
+    if (!(await approve("현재 프로젝트의 사용자 데이터와 자격증명을 영구 삭제할까요? OS 예약을 먼저 해제하고 검증합니다. 되돌릴 수 없습니다."))) return;
+    if (resetPlan !== approvedPlan) throw new Error("미리보기가 바뀌었습니다. 다시 확인하세요.");
+    invalidateReset();
+    submitted = true;
+    $("reset-result").hidden = false;
+    const result = await api("reset", "POST", {confirm:approvedPlan.plan_hash});
+    $("reset-result").textContent = "초기화 완료. 프로그램을 계속 사용할 수 있습니다.\n" + JSON.stringify(result, null, 2);
+    $("reset-reload").hidden = false; $("reset-review").hidden = true;
+    selected = current = selectedRun = undefined; jobItems = []; latestRuns.clear(); pendingRuns.clear();
+    notice("사용자 데이터 초기화를 완료했습니다.");
+  } catch (error) {
+    invalidateReset();
+    const message = !submitted ? "초기화를 요청하지 않았습니다. 새 미리보기를 확인하세요." : error.details ? "초기화 중단. 실패 단계와 남은 데이터를 확인하세요."
+      : "응답을 확인하지 못했습니다. 서버에서 초기화가 계속되었거나 완료되었을 수 있습니다. 자동 재요청하지 말고 새로 진단하세요.";
+    $("reset-result").textContent = message + "\n" + JSON.stringify(error.details || {error:error.message}, null, 2);
+    $("reset-result").hidden = false;
+    throw error;
+  } finally { resetBusy = false; }
+});
+$("reset-reload").onclick = () => window.location.reload();

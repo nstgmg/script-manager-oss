@@ -212,13 +212,18 @@ class Reports:
         return contained(self.store.root, "runtime/reports/" + identifier(job_id) + ".json")
 
     def generate(self, job_id, source, *, settings=None, run_id=None, title=None):
+        with self.store.maintenance_lock():
+            self.store.get(job_id)  # Do not publish a stale conversion after reset removed its Job.
+            return self._generate(job_id, source, settings=settings, run_id=run_id, title=title)
+
+    def _generate(self, job_id, source, *, settings=None, run_id=None, title=None):
         config = self.store.get(job_id)["config"] if settings is None or title is None else {}
         settings = config.get("report", {}) if settings is None else settings
         target = destination(self.store.root, job_id, settings)
         content, info = render_html(source, job_id=job_id, title=title or config.get("name", job_id), run_id=run_id)
         info.update(state="succeeded", job_id=job_id, run_id=run_id,
                     path=str(target), source=str(source), sha256=hashlib.sha256(content).hexdigest())
-        with lock(contained(self.store.root, "runtime/locks/reports.render")):
+        with self.store.maintenance_lock(), lock(contained(self.store.root, "runtime/locks/reports.render")):
             self.validate_destination(job_id, settings)
             target.parent.mkdir(parents=True, exist_ok=True)
             # Recheck after mkdir; reject symlinked ancestors and unowned destination files.
@@ -262,7 +267,7 @@ class Reports:
         return self.generate(job_id, source, settings=settings, run_id=record["id"], title=record["config"]["name"])
 
     def get(self, job_id):
-        with lock(contained(self.store.root, "runtime/locks/reports.render")):
+        with self.store.maintenance_lock(), lock(contained(self.store.root, "runtime/locks/reports.render")):
             return self._get(job_id)
 
     def _get(self, job_id):
@@ -276,7 +281,7 @@ class Reports:
         return {**info, "available": checked.is_file()}
 
     def document(self, job_id):
-        with lock(contained(self.store.root, "runtime/locks/reports.render")):
+        with self.store.maintenance_lock(), lock(contained(self.store.root, "runtime/locks/reports.render")):
             info = self._get(job_id)
             if not info.get("available"):
                 raise ManagerError("생성된 보고서가 없습니다.", 404)

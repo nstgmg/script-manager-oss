@@ -15,6 +15,12 @@ def main(argv=None):
     parser.add_argument("--root", default=".")
     commands = parser.add_subparsers(dest="action", required=True)
     commands.add_parser("list")
+    doctor = commands.add_parser("schedule-doctor", help="OS 예약 읽기 전용 진단; 고아 예약만 명시적 해시 승인 후 제거")
+    doctor.add_argument("--remove", metavar="LABEL")
+    doctor.add_argument("--confirm", metavar="FINGERPRINT")
+    for name in ("reset", "uninstall"):
+        maintenance = commands.add_parser(name, help="삭제 범위 미리보기; --confirm PLAN_HASH로 승인")
+        maintenance.add_argument("--confirm", metavar="PLAN_HASH")
     catalog = commands.add_parser("result-jobs", help="저장 결과 조회용 Job 목적·결과물·마지막 실행")
     catalog.add_argument("--keyword")
     results = commands.add_parser("results", help="기존 저장 결과만 조회 (재실행·웹 접속 없음)")
@@ -119,6 +125,16 @@ def main(argv=None):
     scheduler = Scheduler(store)
     action = args.action
     try:
+        startup_notice = None
+        if action not in ("_worker", "_scheduled", "schedule-doctor", "reset", "uninstall"):
+            from runner.schedule_doctor import ScheduleDoctor
+            marker = store.runtime / "doctor-notice.json"
+            if not marker.exists():
+                diagnosis = ScheduleDoctor(store).scan()
+                startup_notice = {"schedule_doctor_notice": {k: diagnosis.get(k) for k in ("platform", "supported", "counts", "errors", "notice")},
+                                  "message": "첫 실행 OS 예약 진단입니다. schedule-doctor로 목록을 검토하세요. 자동 삭제하지 않았습니다."}
+                if not diagnosis["errors"]:
+                    write_json(marker, {"checked": True})
         parameters = None
         if getattr(args, "parameters", None) is not None:
             from runner.parameters import parse_cli_parameters
@@ -126,7 +142,17 @@ def main(argv=None):
         if action == "_worker":
             execution.worker(args.job, args.run, args.lockfd)
             return 0
-        if action == "list":
+        if action == "schedule-doctor":
+            from runner.schedule_doctor import ScheduleDoctor
+            doctor = ScheduleDoctor(store)
+            if args.confirm and not args.remove:
+                raise ManagerError("--confirm은 --remove와 함께 사용하세요.")
+            result = doctor.remove(args.remove, args.confirm) if args.remove else doctor.scan()
+        elif action in ("reset", "uninstall"):
+            from runner.maintenance import Maintenance
+            manager = Maintenance(store)
+            result = manager.execute(action, args.confirm) if args.confirm else manager.preview(action)
+        elif action == "list":
             result = store.list()
         elif action == "result-jobs":
             from runner.results import Results
@@ -231,9 +257,13 @@ def main(argv=None):
         if action == "_scheduled":
             write_json(store.runtime / "schedules" / (args.job + ("." + args.schedule_id if args.schedule_id else "") + ".last.json"), result)
         else:
+            if startup_notice:
+                print(json.dumps(startup_notice, ensure_ascii=False), file=sys.stderr)
             print(json.dumps(plain(result), ensure_ascii=False, indent=2))
         if action == "run-dashboard":
             return 0 if result.get("success") else (2 if result.get("wait_timed_out") else 1)
+        if isinstance(result, dict) and (result.get("success") is False or action == "schedule-doctor" and result.get("errors")):
+            return 1
         return 1 if isinstance(result, dict) and result.get("state") in ("failed", "timed_out", "cancelled", "interrupted") else 0
     except (ManagerError, OSError, ValueError) as exc:
         if action == "_scheduled":

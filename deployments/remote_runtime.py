@@ -187,6 +187,28 @@ class Controller:
                 timer = ("[Unit]\nDescription=Script Manager timer " + self.job_id + "\n[Timer]\nUnit=" + label + ".service\n" +
                          "\n".join(lines) + "\nPersistent=false\nAccuracySec=1s\n[Install]\nWantedBy=timers.target\n")
             units[label + ".timer"] = timer
+        # Metadata survives loss of the deployment root in the native unit files.
+        # Existing immutable releases stay unchanged; an approved future deployment adds this.
+        identity_path = safe(self.root, ".script-manager-installation.json")
+        with locked(safe(self.root, ".script-manager-installation.lock")):
+            identity = load(identity_path)
+            if identity is None:
+                identity = {"version": 1, "installation_id": uuid.uuid4().hex, "root": str(self.root)}
+                save(identity_path, identity)
+            if not isinstance(identity, dict) or identity.get("root") != str(self.root) or not re.fullmatch(r"[0-9a-f]{32}", identity.get("installation_id", "")):
+                raise ValueError("Invalid deployment installation identity")
+        for name, text in units.items():
+            if text is None:
+                continue
+            suffix = name[len(self.label):].rsplit(".", 1)[0]
+            sid = suffix[len("-schedule-"):] if suffix.startswith("-schedule-") else None
+            meta = {"owner": "script-manager", "version": 1, "kind": "systemd",
+                    "installation_id": identity["installation_id"], "root": str(self.root),
+                    "job_id": self.job_id, "schedule_id": sid, "release": release, "unit": name,
+                    "executable": sys.executable, "code_root": str(directory / "manager"),
+                    "exec_start": start + (" " + quote(sid) if sid else ""),
+                    "definition_sha256": sha(text.encode())}
+            units[name] = "# ScriptManagerMetadata " + json.dumps(meta, sort_keys=True, separators=(",", ":")) + "\n" + text
         return units
 
     def stage(self, info, files):

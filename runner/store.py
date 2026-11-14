@@ -1,5 +1,7 @@
 """Job discovery and cooperative compare-and-swap writes; no database."""
 import io
+import contextlib
+import threading
 import os
 from pathlib import Path
 import re
@@ -245,6 +247,7 @@ def default_job(job_id, name=None):
 class Store:
     def __init__(self, root):
         self.root = Path(root).resolve()
+        self._maintenance_local = threading.local()
         self.jobs = contained(self.root, "jobs")
         self.runtime = contained(self.root, "runtime")
         self.jobs.mkdir(parents=True, exist_ok=True)
@@ -255,7 +258,27 @@ class Store:
     def job_dir(self, job_id):
         return contained(self.jobs, identifier(job_id), True)
 
+    @contextlib.contextmanager
+    def maintenance_lock(self, blocking=True):
+        # Keep the lock inode through reset; never unlink a held coordination lock.
+        depth = getattr(self._maintenance_local, "depth", 0)
+        if depth:
+            yield
+            return
+        with lock(contained(self.runtime, "locks/project-maintenance"), blocking):
+            self._maintenance_local.depth = 1
+            try:
+                yield
+            finally:
+                self._maintenance_local.depth = 0
+
+    @contextlib.contextmanager
     def job_lock(self, job_id, purpose="edit", blocking=True):
+        with self.maintenance_lock(blocking):
+            with self._job_lock(job_id, purpose, blocking) as fd:
+                yield fd
+
+    def _job_lock(self, job_id, purpose="edit", blocking=True):
         path = self.runtime / "locks" / (identifier(job_id) + "." + purpose)
         if os.name != "nt" or purpose != "run":
             return lock(path, blocking)

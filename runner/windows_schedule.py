@@ -14,6 +14,7 @@ import xml.etree.ElementTree as ET
 
 from runner.common import ManagerError, atomic_write, digest, identifier, write_json
 from runner.schedule import Scheduler
+from runner.installation import metadata, description
 from runner.store import schedule_hash, schedules
 
 NS = "http://schemas.microsoft.com/windows/2004/02/mit/task"
@@ -27,10 +28,26 @@ def node(parent, name, value=None):
     return child
 
 
-def task_xml(args, workdir, entry, author, generation):
+def task_definition_hash(task):
+    """Whitespace/namespace-prefix independent checksum of the complete task definition.
+
+    Description carries this checksum and is excluded to avoid a self-reference.
+    Unknown OS-added fields are deliberately not ignored: fail closed on drift.
+    """
+    q = "{" + NS + "}"
+    def value(element):
+        if element.tag == q + "Description":
+            return None
+        return [element.tag, sorted(element.attrib.items()),
+                element.text if element.text and element.text.strip() else "",
+                [value(child) for child in element if child.tag != q + "Description"]]
+    return digest(json.dumps(value(task), sort_keys=True, ensure_ascii=False).encode())
+
+
+def task_xml(args, workdir, entry, author, generation, owner=None):
     task = ET.Element("{" + NS + "}Task", {"version": "1.3"})
     registration = node(task, "RegistrationInfo")
-    node(registration, "Description", "Script Manager " + generation)
+    node(registration, "Description", description(owner) if owner else "Script Manager " + generation)
     triggers = node(task, "Triggers")
     if entry["type"] == "interval":
         seconds = entry["interval_seconds"]
@@ -75,6 +92,9 @@ def task_xml(args, workdir, entry, author, generation):
     node(action, "Command", args[0])
     node(action, "Arguments", subprocess.list2cmdline(args[1:]))
     node(action, "WorkingDirectory", workdir)
+    if owner:
+        owner = dict(owner, definition_sha256=task_definition_hash(task))
+        registration.find("{" + NS + "}Description").text = description(owner)
     return ET.tostring(task, encoding="utf-16", xml_declaration=True).decode("utf-16")
 
 
@@ -92,7 +112,10 @@ class WindowsScheduler(Scheduler):
             raise ManagerError("Windows Task Scheduler는 Windows에서만 사용할 수 있습니다.")
 
     def call(self, args, check=True):
-        result = self.command(args, capture_output=True, stdin=subprocess.DEVNULL, timeout=20)
+        try:
+            result = self.command(args, capture_output=True, stdin=subprocess.DEVNULL, timeout=20)
+        except (OSError, subprocess.SubprocessError) as exc:
+            raise ManagerError("스케줄 명령 실행·관찰 실패: " + str(exc), 502) from exc
         def decoded(value):
             if isinstance(value, str):
                 return value
@@ -126,7 +149,7 @@ class WindowsScheduler(Scheduler):
         user = os.environ.get("USERNAME") or getpass.getuser()
         domain = os.environ.get("USERDOMAIN")
         author = domain + "\\" + user if domain and "\\" not in user and "@" not in user else user
-        xml = task_xml(args, str(Path(__file__).resolve().parent.parent), entry, author, generation)
+        xml = task_xml(args, str(Path(__file__).resolve().parent.parent), entry, author, generation, metadata(self.store, job_id, sid, generation))
         return {"enabled": entry["enabled"], "label": self.task_name(job_id, sid), "schedule_id": sid,
                 "generation": generation, "schedule_hash": schedule_hash(entry), "etag": item["etag"],
                 "xml": xml, "timezone": "host-local"}
@@ -190,6 +213,11 @@ class WindowsScheduler(Scheduler):
             state = self.state(job_id, sid)
             if old is not None and digest(old.encode("utf-8")) != state.get("task_sha256"):
                 raise ManagerError("외부에서 수정되었거나 소유권을 확인할 수 없는 Windows 예약을 보존했습니다: " + self.task_name(job_id, sid), 409)
+            if old is not None:
+                from runner.schedule_doctor import ScheduleDoctor
+                ScheduleDoctor(self.store, self)._windows_idle(self.task_name(job_id, sid))
+                if self._query(job_id, sid) != old:
+                    raise ManagerError("Windows 소유권 확인 중 예약 변경 감지; 보존합니다.", 409)
             snapshots[sid] = (old, state_path.read_bytes() if state_path.exists() else None)
         return snapshots
 
@@ -211,8 +239,13 @@ class WindowsScheduler(Scheduler):
         touched = []
         try:
             for sid, plan in plans.items():
-                touched.append(sid)
                 name = self.task_name(job_id, sid)
+                if snapshots[sid][0] is not None:
+                    from runner.schedule_doctor import ScheduleDoctor
+                    ScheduleDoctor(self.store, self)._windows_idle(name)
+                if self._query(job_id, sid) != snapshots[sid][0]:
+                    raise ManagerError("Windows 적용 직전 예약 변경 감지; 보존합니다.", 409)
+                touched.append(sid)
                 if plan.get("enabled"):
                     write_json(self.state_path(job_id, sid), {"applied": False, "phase": "applying"})
                     self._register(name, plan["xml"])
@@ -225,6 +258,8 @@ class WindowsScheduler(Scheduler):
                 else:
                     if snapshots[sid][0] is not None:
                         self._delete(name)
+                    if self._query(job_id, sid) is not None:
+                        raise ManagerError("Windows 예약 해제를 검증하지 못했습니다: " + name, 502)
                     state = {"applied": False, "phase": "removed"}
                 write_json(self.state_path(job_id, sid), state)
         except Exception as exc:
@@ -233,8 +268,18 @@ class WindowsScheduler(Scheduler):
                 try:
                     old, data = snapshots[sid]
                     name = self.task_name(job_id, sid)
+                    current = self._query(job_id, sid)
+                    allowed = [old, plans[sid].get("xml")]
+                    recorded = self.state(job_id, sid)
+                    own_applied = (recorded.get("generation") == plans[sid].get("generation")
+                                   and current is not None and digest(current.encode()) == recorded.get("task_sha256"))
+                    if current is not None:
+                        from runner.schedule_doctor import ScheduleDoctor
+                        ScheduleDoctor(self.store, self)._windows_idle(name)
+                        if current not in allowed and not own_applied:
+                            raise ManagerError("Windows 복구 중 외부 정의 변경 감지; 보존합니다.", 409)
                     if old is None:
-                        if self._query(job_id, sid) is not None:
+                        if current is not None:
                             self._delete(name)
                     else:
                         self._register(name, old)

@@ -1,5 +1,103 @@
 # Validation records
 
+## Main publication verification — 2026-11-14
+
+The owner explicitly authorized one feature commit and a normal push to `origin/main`, without a VERSION change, new tag, GitHub Release or deployment. Origin was verified as the public, unarchived [nstgmg/script-manager-oss repository](https://github.com/nstgmg/script-manager-oss), with default branch main. Local main started at `5f9b597`; fetched origin/main was `e9fd9de3fb6b533c9729457b708522992aca5c66`, two README-only commits ahead with no divergent local commit. Preserved the local README patch in a task-specific stash/file backup, fast-forwarded main without a merge commit, and reapplied the patch. Both remote additions and feature instructions were retained; the other 29 candidate files were verified unchanged by SHA-256.
+
+Final checks from the synchronized source:
+
+| Check | Observed result |
+| --- | --- |
+| Full Python regression | **270 tests: 265 passed, 5 opt-in native skips, no failures/errors**, 42.329s. Includes offline Chrome management/report/detail checks. `.cache/publish-python-tests.txt` |
+| Node Dashboard UI | **71 passed**, no skips/failures. `.cache/publish-node-tests.txt` |
+| Syntax | All 20 candidate Python files parsed with Python 3.9 grammar; Dashboard JavaScript and Chrome helper passed Node syntax checks |
+| Documentation | README, CLI, architecture, uninstall and validation links/anchors checked with no missing targets; deletion scope, local/remote boundaries and platform limitations agree |
+| Candidate scope and sensitive-content review | Explicit allowlist of **30 feature/audit source, test and documentation files**; no private-key, recognized token/access-key, credential-bearing URL or unintended private-path patterns found; no symlink/binary/runtime files selected |
+| Git hygiene | `git diff --check` passed; VERSION unchanged. `.cache/`, `.venv/`, bytecode, logs/screenshots, runtime/Job data and credentials remain excluded. |
+| Existing macOS actual-OS evidence | Rechecked the audit's four distinct native PASS records, the natural-wrapper-exit retry and zero-test-reservation cleanup evidence. Native schedules were not created again for publication. |
+
+The 5 Python skips are the 4 macOS opt-in cases already tested natively during the audit and 1 Windows native case. Actual Windows/Linux scheduling, Windows XML export normalization/path deletion, actual Linux mounts/systemd and real SSH remain unverified; publication does not change those limits. Pattern scanning is evidence of this candidate review, not a claim that all possible secret formats can be detected. Original .env values were not read.
+
+GitHub reports active default-setup CodeQL and Dependency Graph workflows; there are no repository-defined workflow files in this checkout. The pushed commit SHA, exact remote/local HEAD comparison and Actions outcomes are checked and reported after publication, avoiding a self-referential commit hash in this document. Only main is updated; the temporary README stash is removed only after the verified content has been committed. Ignored verification artifacts remain local.
+
+
+## Final maintenance safety audit — 2026-11-14
+
+This section records a separate audit of the preceding uncommitted implementation. Starting HEAD was `5f9b597`, with **26 existing changed/untracked files**. Those files and their SHA-256 manifest were preserved under ignored `.cache/final-audit-baseline/` before edits; no reset/clean/stash/commit/push/deployment was performed. Changes stayed in `script-manager-oss-clean`. No real user reset, credentials read, existing service control, actual SSH, dependency extension or background monitor was introduced.
+
+### Confirmed defects and corrections
+
+| Finding | Correction and evidence |
+| --- | --- |
+| Approved data was not rechecked after native removal; recursive removal could consume newly added children | Per-target approved inventory fingerprints, complete target-set recheck in `verify-data-plan`, individual approved-entry deletion and progress reporting. POSIX uses rooted directory descriptors, O_NOFOLLOW and inode/device/type checks. New children are retained; directory removal fails rather than recursively consuming them. `DataAuditTests` reproduced the original lost-child defect before the fix; `FinalDataRaceTests` verifies an addition even after deletion begins survives until a new approval. |
+| Inaccessible traversal could silently omit files; code-free nested installations, Git projects and unfinished operations were not guarded | Walk errors propagate; nested installation markers and Git roots, reparse points/junctions, mounts and Linux bind mounts block maintenance. `pending`/`unconfirmed` or unreadable deployment receipts and applying/degraded schedule state block cleanup. Original nested-installation and unconfirmed-deployment cases failed before the fix. Bind mount/reparse handling is simulated on macOS; no real mount operation was performed. |
+| Original state/native checksums and installation IDs were not consistently compared; Windows trigger changes could pass as healthy | Compare existing local state checksums and identity; reject malformed ownership metadata. New Windows definitions carry a complete canonical XML checksum. Old metadata without it requires original state evidence; missing evidence remains unknown. The modified-trigger case failed before the fix. XML fields/defaults added by a real Windows export may conservatively make a task unknown; real Windows normalization compatibility remains unverified. |
+| A plist/unit file path alone did not prove what the OS had loaded | Compare actual loaded launchd program/argv/working directory; compare systemd service ExecStart and timer target, source/drop-ins/reload state and deployment identity. Actual launchd format and normal/orphan flows were verified on macOS. Linux loaded-definition and failed-query cases use simulated systemd. No prefix-only ownership acceptance was found or added; prefixes only enumerate candidates or conservatively block ambiguous current-namespace entries. |
+| A native definition could change in the last state query, and old schedule transaction/rollback paths could force bootout or overwrite an external replacement | Recheck raw definitions adjacent to mutation; require idle, matching loaded invocations in schedule apply/remove/preflight/rollback, and preserve foreign replacements during rollback with degraded-state reporting. Tests inject post-observation replacement, active tasks/processes and rollback-time foreign definitions. These are best-effort checks, not an OS compare-and-delete primitive. |
+| Linux show errors with plausible stdout could be accepted | Reject failed `show` results. Explicit no-unit code 4 is accepted only with consistent not-found/inactive/empty-source properties; other error output is not a success. Exit status reference: [official systemctl manual](https://www.freedesktop.org/software/systemd/man/256/systemctl.html). Both branches are simulated; this reference is not a native Linux test. |
+| Dashboard approval could refer to a changed preview; lost responses were described as a definite abort | Bind the approval to the captured preview, guard competing reset/preview actions, invalidate after errors, preserve cancellation behavior, and report uncertain completion on connection loss with no automatic retry. Disconnected response handling does not perform a second mutation. Actual ephemeral HTTP tests cover overlapping requests, stale replay after new Job creation, and socket disconnection while cleanup continues once. |
+
+The initial focused red run executed five cases and reproduced **four failures**, retained in `.cache/audit-red.txt`. They all pass after correction. An initial actual-OS regression refused an update after a terminal Run because its launchd CLI wrapper had not yet exited. The production guard was retained; native tests now wait for the wrapper's natural exit, without forcing it out. The failed native case passed on re-execution, and there are **no unresolved test failures**.
+
+### Verification results and limits
+
+Host remained macOS ARM64, Python 3.9.6, existing ruamel.yaml dependency, Node 20.11.1 and installed Chrome.
+
+| Check | Observed result |
+| --- | --- |
+| Final ordinary full suite | `python -m unittest discover -s tests -q`: **270 tests, 265 passed, 5 opt-in skips, 0 failures/errors**, 41.687s; `.cache/audit-regression-final.txt` |
+| Audit regressions | **25 passed**; new `tests/test_maintenance_audit.py` covers scope drift, partial deletion/retry, code/data separation, external paths, traversal failure, path escape, nested installation, mounts/bind mount, loaded-definition drift, identity mismatch, unconfirmed records, active native processes, last-query drift and rollback preservation |
+| Native macOS plus real HTTP | Initial 8-test run: **7 passed, 1 wrapper-timing error**. Final targeted re-execution: **2 passed**, including the previously failing multi-agent case and reset/reinstall recovery. Across these runs all **4 distinct native macOS tests passed**; actual interval firing, invocation, legacy/native reapplication, safe removal, reset/reuse/uninstall preparation and orphan recovery were covered. Logs: `.cache/audit-native-http.txt`, `.cache/audit-native-final.txt`. |
+| Dashboard HTTP | **4 passed**, including the two new overlap/replay and disconnect cases; ephemeral loopback servers were shut down |
+| Dashboard Node UI | **71 passed**; `.cache/audit-ui.txt`. Actual Chrome desktop 1280px/mobile 390px management and existing UI/report regressions passed within the final Python suite. |
+| Final OS cleanup | `launchctl list` and test plist inventory showed **zero remaining test services/plists**, `.cache/audit-native-cleanup.txt`. No normal reservation was modified. |
+| Documents/source hygiene | Local links checked, no missing targets; `git diff --check` and changed-module compilation passed. |
+
+Across the final suite and explicit native runs, **269 of 270 unique Python tests passed**. The remaining test is the real Windows opt-in test, **not executed**. The 5 skips in the ordinary suite are the 4 separately tested macOS cases and that Windows case. Windows and Linux ownership/removal/state-error behavior use in-memory OS adapters; native Windows Task Scheduler/XML normalization/PowerShell and Windows path deletion, native Linux systemd/proc mount enumeration and actual mounts are **not verified on those OSes**. Do not treat simulated coverage as native PASS.
+
+The eight requested recovery scenarios have evidence: native/unit normal reset and uninstall preparation; native project deletion/reinstalled individual orphan cleanup and foreign-install protection; injected multi-schedule failure with no data deletion and successful reapproval; injected partial entry deletion with `deleted_entries` and successful fresh-preview recovery; existing job execution/native schedule reapplication/deployment regressions; and actual HTTP duplicate/disconnect behavior. Ordinary OS entries, legacy/metadata-free/unknown entries and healthy foreign entries are protected by the native adapters' simulated tests; macOS also verified a second live native installation.
+
+Remaining operational limits: data deletion is irreversible and not an all-or-nothing transaction; changes may stop after some approved entries or reservations are already removed. Incomplete deployment evidence blocks reset and needs separate operator recovery—existing verify does not automatically rewrite old receipts. Windows export drift can require original-install schedule removal or manual review. Native tools do not offer atomic definition-compare-and-remove; concurrent external OS edits, older processes ignoring the gate, malicious same-user filesystem replacement and Windows path races are not claimed fully solved. POSIX descriptor checks protect directory traversal boundaries, and additions are preserved, but this is not a multi-user security boundary or secure storage erasure. No SSH or remote cleanup is inferred from a local reset.
+
+Audit-touched files relative to the preserved implementation (19): `runner/maintenance.py`, `runner/schedule_doctor.py`, `runner/schedule.py`, `runner/windows_schedule.py`, `runner/installation.py`; `dashboard/server.py`, `dashboard/static/app.js`; `tests/test_maintenance.py`, `tests/test_maintenance_audit.py` (new), `tests/test_maintenance_http.py`, `tests/test_schedule_doctor_platforms.py`, `tests/test_schedule.py`, `tests/test_windows_schedule.py`, `tests/test_native_launchd.py`, `tests/test_dashboard_ui.cjs`; `README.md`, `docs/cli.md`, `docs/uninstall.md`, `docs/validation.md`. The entire worktree includes the earlier changes: **20 tracked modified files and 10 untracked files**. Existing changes were preserved; no files were staged, committed, pushed or deployed. See [the updated user instructions](uninstall.md) for the exact preservation/deletion scope and recovery policy.
+
+
+## Reset, uninstall and schedule recovery — 2026-11-14
+
+Work was confined to the `script-manager-oss-clean` checkout, initially clean at `5f9b597`; no commit, push, deployment, real user reset, existing service restart or SSH operation was performed. Tests used isolated roots and synthetic data. The checkout-local Python environment was created from the existing requirements; runtime dependencies were not extended. Host: macOS ARM64, Python 3.9.6, ruamel.yaml 0.18.17, Node 20.11.1, installed Chrome. This records test execution on the minimum supported Python, not a recommendation for a new installation.
+
+| Verification | Result |
+| --- | --- |
+| Final ordinary Python suite: `python -m unittest discover -s tests -q` | **243 tests: 238 passed, 5 opt-in native skips, 0 failures/errors** |
+| Earlier full suite with `SCRIPT_MANAGER_TEST_LAUNCHD=1` | **239 tests: 238 passed, 1 Windows-native skip**; includes all 4 macOS native tests |
+| Final native maintenance smoke with `SCRIPT_MANAGER_TEST_LAUNCHD=1` | **1 passed** after the final immediate process-state recheck; temporary LaunchAgents absent/unloaded after cleanup |
+| Node Dashboard UI suite | **69 passed**, including typed confirmation, final cancellation, stale preview invalidation, blockers, error phase/remaining paths and safe text rendering |
+| Actual Chrome management UI | Desktop 1280px and mobile 390px via DevTools pipe; diagnosis, preview, typed confirmation, cancellation, OS failure, running blocker, successful reset/reload guidance, no page horizontal overflow; screenshots visually inspected |
+| Existing Chrome report/detail regressions | Passed in final ordinary suite; no Dashboard or network service needed for browser fixtures |
+| CLI help and documents | New commands parsed; 47 local links across README/CLI/architecture/uninstall checked, zero missing targets; `git diff --check` passed |
+
+Across these runs, **242 of the final 243 unique Python tests were exercised successfully**; the remaining test requires a real Windows host. The final ordinary suite intentionally leaves macOS native opt-in disabled after its separate actual-OS coverage. The three existing native schedule tests covered interval firing, OS invocation, independent registrations, updates and removal; the new native maintenance test covered reset, subsequent Job/schedule creation, uninstall preparation, protection of another live installation, project deletion and orphan removal from a reinstall. Only uniquely namespaced synthetic reservations were modified, and tests cleaned their native registrations. No calendar date arrival, login/reboot/sleep recovery or actual Windows/Linux OS behavior is claimed.
+
+New deterministic tests also cover all reserved data categories including synthetic .env without reading it during preview, preservation of program/external files and installation IDs, existing legacy job-only and per-Schedule checksum compatibility, copied/corrupt IDs, same-path reinstall, unknown/modified/loaded-only registrations, healthy foreign installations and ordinary OS reservations, actual running Job refusal without cancellation, silent/explicit/timeout/partially completed unregister failures before any data deletion, partial data-deletion error reporting, confirmation scoping and managed-operation exclusion. Worker protection transfers from the live run lock/Windows lease to the project gate before automatic retention cleanup; the existing automatic Output cleanup regression passes.
+
+Windows Task Scheduler and Linux systemd discovery/ownership/removal/failure paths used in-memory OS adapters. Windows current-user task XML/metadata/arguments, numeric waiting/running states, deletion verification, legacy checksums and foreign/ordinary task protection were tested. Linux remote helper metadata, read-only systemd inventory, missing deployment roots, timer-first orphan cleanup, active service/drop-in/legacy protection and stop failure were tested. Local Linux Job scheduling remains unsupported; diagnosis never opens SSH, and local reset does not clean remote deployments. Older systemd units and local native definitions without sufficient ownership evidence remain unknown; migration is only through an explicitly approved future schedule application/deployment, never a diagnostic rewrite.
+
+Artifacts from this verification are local and ignored under `.cache/`: `regression-final.txt`, `regression.txt`, `native-maintenance-final.txt`, `dashboard-ui-final.tap` and `maintenance-ui/*.png`. They contain synthetic fixtures/summary data and are not part of the source distribution. See [the user-facing removal/recovery procedure](uninstall.md).
+
+Changed files for this feature (26):
+
+| Area | Files |
+| --- | --- |
+| Ownership, diagnosis, maintenance | `runner/installation.py`, `runner/schedule_doctor.py`, `runner/maintenance.py` (new) |
+| Existing CLI/runtime adapters | `runner/__main__.py`, `runner/schedule.py`, `runner/windows_schedule.py`, `runner/store.py`, `runner/execution.py`, `runner/reports.py` |
+| Linux deployment metadata | `deployments/remote_runtime.py` |
+| Dashboard | `dashboard/server.py`, `dashboard/static/index.html`, `dashboard/static/app.js`, `dashboard/static/style.css` |
+| New tests | `tests/test_maintenance.py`, `tests/test_maintenance_http.py`, `tests/test_maintenance_native.py`, `tests/test_schedule_doctor_platforms.py`, `tests/test_maintenance_browser.py` |
+| Existing UI test helpers | `tests/test_dashboard_ui.cjs`, `tests/job_detail_chrome.cjs` |
+| User/developer docs | `README.md`, `docs/uninstall.md` (new), `docs/cli.md`, `docs/architecture.md`, `docs/validation.md` |
+
+
+
 Current public/security status and preserved installation checks: [public readiness](public-readiness.md). Focused CodeQL follow-up and alert handling criteria: [CodeQL triage](codeql-triage.md). The Phase 2A section below is historical; its no-hosting statements describe that phase only. Private registration and the Public transition happened later. Those historical platform results are not new verification of Windows, Linux, native schedules or real SSH/systemd.
 
 ## v0.1.0 publication gate — 2026-11-14
