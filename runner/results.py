@@ -9,7 +9,7 @@ from datetime import datetime, time, timedelta, timezone
 from functools import lru_cache
 import io
 import json
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 import re
 from time import perf_counter
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
@@ -241,7 +241,11 @@ class Results:
         self.store.get(job_id)
         if any(value is not None and (not isinstance(value, str) or not value.strip()) for value in (status, source, file)):
             raise ManagerError('status, source, file은 비어 있지 않은 문자열이어야 합니다.')
-        if file and (Path(file).is_absolute() or '..' in Path(file).parts or '\x00' in file):
+        # Filters never become read paths, but their public relative-path contract
+        # must also reject drive-relative/rooted Windows paths on every host.
+        if file and (PurePosixPath(file).anchor or PureWindowsPath(file).anchor
+                     or '..' in PurePosixPath(file).parts or '..' in PureWindowsPath(file).parts
+                     or '\x00' in file):
             raise ManagerError('file은 결과 파일명 또는 프로젝트 내부 상대 경로여야 합니다.')
         if type(limit) is not int or not 1 <= limit <= 200 or type(offset) is not int or offset < 0:
             raise ManagerError('limit은 1~200, offset은 0 이상의 정수여야 합니다.')

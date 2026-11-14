@@ -78,10 +78,13 @@ class ReportTests(unittest.TestCase):
     def test_various_json_and_payload_escape_preserves_original(self):
         payloads = [[], {}, None, True, 3, "", [1,"x",None,{}], {"a":[{"b":2}]},
                     {"</script><script>globalThis.pwned=true</script>": "<img src=x onerror=alert(1)>&\u2028@@TITLE@@", "__proto__": {"bad": 1}}]
-        for payload in payloads:
-            with self.subTest(payload=payload):
+        for payload, newline in ((p, nl) for p in payloads for nl in ('\n', '\r\n')):
+            with self.subTest(payload=payload, newline=repr(newline)):
                 raw = json.dumps(payload, ensure_ascii=False, indent=2)
-                self.source.write_text(raw, encoding="utf-8")
+                # Assert exact recorded UTF-8 text, including CRLF, independent
+                # of the host's write_text newline translation.
+                raw = raw.replace('\n', newline)
+                self.source.write_bytes(raw.encode('utf-8'))
                 content, info = render_html(self.source, job_id="sample", title='<script>bad()</script>')
                 text = content.decode()
                 data = text.split('<script id="report-data" type="application/json">')[1].split('</script>')[0]

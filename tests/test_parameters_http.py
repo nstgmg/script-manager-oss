@@ -13,6 +13,7 @@ from runner.common import ManagerError
 from runner.dashboard_run import DashboardRun
 from runner.execution import Execution
 from tests.test_parameters import definitions, MOCK_SCRIPT
+from tests.execution_helpers import capture_workers
 from runner.store import default_job
 import sys
 
@@ -20,6 +21,10 @@ import sys
 class ParameterHTTPTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
+        # Register cleanup after server cleanup so worker evidence survives a
+        # failed assertion before the temporary data root is removed.
+        self.addCleanup(self.temp.cleanup)
+        self.diagnostics = capture_workers(self, self.temp.name)
         self.server = Dashboard(self.temp.name, 0)
         self.thread = threading.Thread(target=lambda: self.server.serve_forever(poll_interval=.01), daemon=True)
         self.thread.start()
@@ -32,7 +37,6 @@ class ParameterHTTPTests(unittest.TestCase):
         self.server.shutdown()
         self.server.server_close()
         self.thread.join()
-        self.temp.cleanup()
 
     def request(self, body, headers=None, path='/api/jobs/sample/runs', raw=False):
         conn = http.client.HTTPConnection('127.0.0.1', self.server.server_port, timeout=5)
@@ -47,11 +51,12 @@ class ParameterHTTPTests(unittest.TestCase):
 
     def test_dashboard_payload_api_and_cli_apply_identical_values(self):
         values = {'text': '한글 ; $(echo literal)', 'day': '2026-11-13', 'count': 3, 'enabled': False}
-        with patch('runner.execution.subprocess.Popen') as spawn:
-            # Hold the detached worker to inspect API acceptance then run via CLI below.
-            spawn.return_value.wait.return_value = 0
-            status, accepted = self.request({'parameters': values})
+        # A real accepted Run verifies PID/lease handling on Windows too. A
+        # MagicMock PID is not a valid detached-process contract.
+        status, accepted = self.request({'parameters': values})
         self.assertEqual(status, 202, accepted)
+        observed = self.client.run('sample', run_id=accepted['id'], poll_seconds=.1)
+        self.assertTrue(observed['success'], (observed, self.diagnostics('sample', accepted['id'])))
         output = io.StringIO()
         with contextlib.redirect_stdout(output), contextlib.redirect_stderr(io.StringIO()):
             code = main(['--root', self.temp.name, 'run', 'sample', '--wait', '--parameters', json.dumps(values)])
@@ -60,6 +65,8 @@ class ParameterHTTPTests(unittest.TestCase):
         self.assertEqual(result['parameters'], accepted['parameters'])
         self.assertEqual(result['resolved_command'], accepted['resolved_command'])
         self.assertEqual(result['parameter_contract_version'], accepted['parameter_contract_version'])
+        self.assertEqual((result['state'], result['exit_code']), ('succeeded', 0), result)
+        self.assertEqual(len(Execution(self.server.store).list('sample')), 2)
 
     def test_run_dashboard_cli_transmits_waits_and_resumes_same_run(self):
         output = io.StringIO()
@@ -67,7 +74,7 @@ class ParameterHTTPTests(unittest.TestCase):
             code = main(['--root', self.temp.name, 'run-dashboard', 'sample', '--url', self.base,
                          '--poll-seconds', '.1', '--parameters', '{"text":"cli","verbose":true}'])
         result = json.loads(output.getvalue())
-        self.assertEqual(code, 0, result)
+        self.assertEqual(code, 0, (result, self.diagnostics('sample', result['run_id']) if result.get('run_id') else {}))
         self.assertTrue(result['success'])
         self.assertEqual(result['parameters']['text'], 'cli')
         self.assertIn('--verbose', json.loads(result['logs']['stdout']['text'])['argv'])

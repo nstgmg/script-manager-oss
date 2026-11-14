@@ -314,6 +314,34 @@ class ResultsTests(unittest.TestCase):
             with self.subTest(arguments=arguments), self.assertRaises(ManagerError):
                 self.query(**arguments)
 
+    def test_foreign_and_native_path_filters_rejected_before_result_reads(self):
+        self.save(self.grouped())
+        paths = ('/tmp/file', r'\tmp\file', 'C:/tmp/file', r'C:\tmp\file', 'C:file',
+                 r'\\server\share\file', '//server/share/file', r'\\?\C:\tmp\file',
+                 r'\\.\C:\tmp\file', '../file', r'..\file', 'nested/../file',
+                 r'nested\..\file', 'nested/..\\file', 'file\x00.json')
+        with patch('runner.results.load_rows', side_effect=AssertionError('must not read results')) as load:
+            for value in paths:
+                with self.subTest(file=value), self.assertRaises(ManagerError):
+                    self.query(file=value)
+            load.assert_not_called()
+
+    def test_file_filter_reads_only_discovered_saved_artifact(self):
+        saved = self.save(self.grouped())
+        # A valid relative input outside the artifact set selects nothing; it
+        # must never be opened. Valid basename and saved relative paths still work.
+        outside = self.root / 'not-an-artifact.json'
+        outside.write_text('[{"title":"outside sentinel"}]', encoding='utf-8')
+        for value in (saved.name, str(saved.relative_to(self.root))):
+            with self.subTest(file=value), patch('runner.results.load_rows', wraps=load_rows) as load:
+                result = self.query(file=value)
+                self.assertEqual(result['total'], 3)
+                self.assertEqual(len(load.call_args_list), 1)
+                self.assertEqual(Path(load.call_args.args[0]), saved.resolve())
+        with patch('runner.results.load_rows', side_effect=AssertionError('must not open arbitrary filter')):
+            self.assertEqual(self.query(file=outside.name)['total'], 0)
+        self.assertIn('outside sentinel', outside.read_text(encoding='utf-8'))
+
     def test_unknown_run_and_job(self):
         with self.assertRaises(ManagerError) as error:
             self.query(run_id='b' * 32)

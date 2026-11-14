@@ -4,6 +4,7 @@ from pathlib import Path
 import sys
 import tempfile
 import time
+from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
@@ -136,6 +137,42 @@ class LifecycleTests(unittest.TestCase):
         self.assertFalse(self.packages.get(pid,'sample')['zip_available'])
         self.assertTrue(self.packages.get(newer,'sample')['zip_available'])
 
+    def test_windows_zip_permission_failures_preserve_bytes_metadata_and_protected_package(self):
+        protected, candidate = [self.packages.create('sample')['id'] for _ in range(2)]
+        self.life.save('sample', {'package_keep': 0, 'pins': [protected]})
+        archive = self.packages._directory(candidate) / 'package.zip'
+        files = [self.packages._directory(pid) / name for pid in (protected, candidate)
+                 for name in ('package.zip', 'metadata.json')]
+        before = {p: p.read_bytes() for p in files}
+        chmod, unlink = Path.chmod, Path.unlink
+        for operation in ('chmod', 'unlink'):
+            touched = []
+            def change(path, mode, *args, **kwargs):
+                touched.append(path)
+                if path == archive and operation == 'chmod':
+                    raise PermissionError('injected attribute access denied')
+                return chmod(path, mode, *args, **kwargs)
+            def remove(path, *args, **kwargs):
+                if path == archive:
+                    raise PermissionError('injected sharing/access denial')
+                return unlink(path, *args, **kwargs)
+            with self.subTest(operation=operation), \
+                 patch('runner.lifecycle.os', SimpleNamespace(name='nt')), \
+                 patch.object(Path, 'chmod', change), patch.object(Path, 'unlink', remove):
+                result = self.life.cleanup('sample', 'packages', [candidate])
+            self.assertEqual(result['completed'], [])
+            self.assertEqual([e['id'] for e in result['errors']], [candidate])
+            self.assertEqual(touched, [archive])
+            self.assertEqual({p: p.read_bytes() for p in files}, before)
+            self.assertTrue(self.packages.get(candidate, 'sample')['zip_available'])
+        # A later successful authorized cleanup retries the same eligible ZIP.
+        with patch('runner.lifecycle.os', SimpleNamespace(name='nt')):
+            result = self.life.cleanup('sample', 'packages', [candidate])
+        self.assertEqual(result, {'completed': [candidate], 'errors': []})
+        self.assertEqual((archive.parent / 'metadata.json').read_bytes(), before[archive.parent / 'metadata.json'])
+        self.assertEqual((self.packages._directory(protected) / 'package.zip').read_bytes(),
+                         before[self.packages._directory(protected) / 'package.zip'])
+
     def test_real_execution_env_and_post_run_cleanup(self):
         item = self.store.get('sample')
         config = item['config']; config['command'] = [sys.executable, 'main.py']
@@ -157,7 +194,8 @@ class LifecycleTests(unittest.TestCase):
         self.assertEqual(record['state'],'succeeded')
         self.assertTrue(self.life.outputs('sample')[0]['trashed'])
         self.assertEqual(Path(self.life.paths('sample')['SCRIPT_MANAGER_STATE_DIR'],'checkpoint').read_text(),'saved')
-        self.assertIn('/workspace',execution.logs('sample',run)['text'])
+        self.assertEqual(record['exit_code'], 0, record)
+        self.assertEqual(Path(execution.logs('sample',run)['text'].strip()), self.store.root / 'workspace')
 
     def test_default_count_and_missing_zip_deployment_block(self):
         packages=[self.packages.create('sample') for _ in range(6)]

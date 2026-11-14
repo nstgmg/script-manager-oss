@@ -9,6 +9,7 @@ from unittest.mock import patch
 from runner.common import ManagerError
 from runner.execution import Execution, LOG_LIMIT, environment, snapshot
 from runner.store import Store, default_job, dump_yaml
+from tests.execution_helpers import capture_workers
 
 
 class ExecutionTests(unittest.TestCase):
@@ -18,6 +19,7 @@ class ExecutionTests(unittest.TestCase):
         self.store = Store(self.temp.name)
         self.store.create(default_job("sample"))
         self.execution = Execution(self.store)
+        self.diagnostics = capture_workers(self, self.store.root)
         self.active = []
         self.addCleanup(self.stop_active)
 
@@ -49,7 +51,7 @@ class ExecutionTests(unittest.TestCase):
             if result["state"] not in ("queued", "running"):
                 return result
             time.sleep(0.05)
-        self.fail("Runner did not finish")
+        self.fail("Runner did not finish: " + str(self.diagnostics('sample', run)))
 
     def test_success_failure_and_source_snapshot(self):
         self.configure('import time\nprint("snapshot output", flush=True)\ntime.sleep(.2)\n')
@@ -67,7 +69,27 @@ class ExecutionTests(unittest.TestCase):
         with self.assertRaises(ManagerError):
             self.store.delete("sample", self.store.get("sample")["etag"])
         self.execution.cancel("sample", run)
-        self.assertEqual(self.wait(run)["state"], "cancelled")
+        result = self.wait(run)
+        self.assertEqual(result["state"], "cancelled", self.diagnostics('sample', run))
+        self.assertIsInstance(result['exit_code'], int, result)
+
+    def test_cancel_after_child_ready_preserves_terminal_record(self):
+        self.configure("import os,time\nfrom pathlib import Path\n"
+                       "Path(os.environ['SCRIPT_MANAGER_WORKSPACE_DIR'],'ready').touch()\n"
+                       "time.sleep(30)\n")
+        run = self.start()
+        ready = self.store.root / 'workspace/ready'
+        deadline = time.monotonic() + 12
+        while not ready.exists() and time.monotonic() < deadline:
+            time.sleep(.05)
+        self.assertTrue(ready.exists(), self.diagnostics('sample', run))
+        self.assertEqual(self.execution.get('sample', run)['state'], 'running')
+        self.execution.cancel('sample', run)
+        record = self.wait(run)
+        self.assertEqual(record['state'], 'cancelled', self.diagnostics('sample', run))
+        self.assertIsInstance(record['exit_code'], int)
+        # Repeated observation must never turn a committed result into interrupted.
+        self.assertEqual(self.execution.get('sample', run), record)
 
     def test_timeout_and_bounded_logs(self):
         self.configure("import time\nprint('hello', flush=True)\ntime.sleep(30)", timeout_seconds=1)

@@ -19,6 +19,13 @@ class NativeRuntimeACLTests(unittest.TestCase):
         result = subprocess.run(
             ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command",
              "$ErrorActionPreference = 'Stop'; "
+             # Windows PowerShell must use its own module, even when invoked
+             # from pwsh with an inherited PSModulePath. Import failures remain
+             # failures, with the exact native module path in the diagnostic.
+             "$module = Join-Path $PSHOME 'Modules\\Microsoft.PowerShell.Security\\Microsoft.PowerShell.Security.psd1'; "
+             "try { Import-Module -Name $module -ErrorAction Stop } catch { "
+             "[Console]::Error.WriteLine(('ACL module import failed: {0}; PSVersion={1}; {2}' "
+             "-f $module, $PSVersionTable.PSVersion, $_)); exit 1 }; "
              "$acl = Get-Acl -LiteralPath $env:SCRIPT_MANAGER_ACL_TEST_ROOT; "
              "[pscustomobject]@{sddl=$acl.Sddl; protected=$acl.AreAccessRulesProtected; "
              "inherited=@($acl.Access | Where-Object { $_.IsInherited }).Count} "

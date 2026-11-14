@@ -3,6 +3,7 @@ import io
 import json
 from pathlib import Path
 import subprocess
+import sys
 import tempfile
 import unittest
 import zipfile
@@ -101,7 +102,7 @@ class PackageTests(unittest.TestCase):
         destination.mkdir()
         with zipfile.ZipFile(io.BytesIO(self.packages.archive(package["id"], "sample"))) as archive:
             archive.extractall(destination)
-        result = subprocess.run(["python3", "main.py"], cwd=destination / "source",
+        result = subprocess.run([sys.executable, "main.py"], cwd=destination / "source",
                                 capture_output=True, text=True, timeout=10)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("sample job completed", result.stdout)

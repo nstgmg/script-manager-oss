@@ -50,6 +50,25 @@ class WindowsExecutionTests(unittest.TestCase):
         self.assertEqual(self.run_script("import time; time.sleep(30)", timeout=0.1)["state"], "timed_out")
         self.assertEqual(self.run_script("import time; time.sleep(30)", cancelled=lambda: True)["state"], "cancelled")
 
+    def test_unassigned_job_fallback_reaps_only_its_child(self):
+        class UnassignedJob(FakeWindowsJob):
+            def __init__(self, proc):
+                super().__init__(proc)
+                self.assigned = False
+        # Replace taskkill itself: this test must never run native process-tree
+        # commands on the host. The monitor still kills/reaps its real child.
+        for timeout, cancel, state in ((.1, False, 'timed_out'), (3, True, 'cancelled')):
+            with self.subTest(state=state), patch('runner.execution.WindowsJob', UnassignedJob), \
+                 patch('runner.execution.subprocess.run', side_effect=subprocess.TimeoutExpired('taskkill', 20)) as kill:
+                result = self.run_script('import time; time.sleep(30)', timeout=timeout, cancelled=lambda: cancel)
+                self.assertEqual(result['state'], state)
+                self.assertIsInstance(result['exit_code'], int)
+                self.assertNotEqual(result['exit_code'], 0)
+                argv = kill.call_args.args[0]
+                self.assertEqual(argv[:2], ['taskkill', '/PID'])
+                self.assertTrue(argv[2].isdigit())
+                self.assertEqual(argv[3:], ['/T', '/F'])
+
     def test_run_lease_blocks_overlap_and_clears_stale_owner(self):
         path = self.folder / "sample.run.active"
         write_json(path, {"run_id": "one", "pid": 42, "created": time.time() - 60})

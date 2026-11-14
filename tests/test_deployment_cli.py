@@ -147,7 +147,14 @@ class DeploymentCliTests(unittest.TestCase):
 
     def test_missing_package_zip_after_planning_rejected_before_ssh(self):
         plan = self.plan()
-        (self.packages.root / self.package_id / "package.zip").unlink()
+        archive = self.packages.root / self.package_id / "package.zip"
+        # Packages intentionally mark this file readonly. Only this test-owned
+        # archive is made writable to arrange the missing-ZIP precondition.
+        metadata = (archive.parent / "metadata.json").read_bytes()
+        archive.chmod(0o600)
+        archive.unlink()
+        self.assertFalse(archive.exists())
         self.assert_rejected("deploy-plan", "sample", "test", "--package-id", self.package_id)
         self.assert_rejected("deploy", "sample", "test", "--package-id", self.package_id,
                              "--plan-hash", plan["plan_hash"])
+        self.assertEqual((archive.parent / "metadata.json").read_bytes(), metadata)

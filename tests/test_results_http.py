@@ -81,6 +81,14 @@ class ResultsHTTPTests(unittest.TestCase):
         self.assertEqual(self.request('/api/results/jobs?keyword=')[0], 400)
         self.assertEqual(self.request('/api/results/jobs?keyword=a&keyword=b')[0], 400)
 
+    def test_windows_and_posix_path_filters_return_400_without_reading_results(self):
+        for value in ('/tmp/file', r'\tmp\file', r'C:\tmp\file', 'C:file',
+                      r'\\server\share\file', r'..\file', 'nested/..\\file'):
+            with self.subTest(file=value), \
+                 patch('runner.results.load_rows', side_effect=AssertionError('must not read')):
+                status, _ = self.request('/api/jobs/support/results?' + urlencode({'file': value}))
+                self.assertEqual(status, 400)
+
 
 if __name__ == '__main__':
     unittest.main()

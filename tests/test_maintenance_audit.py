@@ -2,6 +2,7 @@
 import unittest
 from pathlib import Path
 import json
+import os
 import plistlib
 import shutil
 import subprocess
@@ -101,25 +102,51 @@ class MoreDataAuditTests(unittest.TestCase):
     setUp = mac_fixtures.MaintenanceTests.setUp
     create = mac_fixtures.MaintenanceTests.create
     def test_audit_partial_file_deletion_is_reported_and_resumable(self):
+        self.assert_partial_file_deletion()
+
+    def test_audit_partial_file_deletion_with_windows_path_calls(self):
+        class WindowsPathCalls:
+            name = 'nt'
+            def __getattr__(self, name):
+                return getattr(os, name)
+        # Exercise the real path-based deletion branch on POSIX as well. This
+        # is not a native Windows ACL/reparse-point or filesystem-race test.
+        with patch('runner.maintenance.os', WindowsPathCalls()):
+            self.assert_partial_file_deletion()
+
+    def assert_partial_file_deletion(self):
         target = self.store.job_dir('sample') / 'unapproved.txt'
         target.write_text('approved synthetic data')
         plan = self.manager.preview()
-        original = __import__('os').unlink
+        original = os.unlink
+        original_path_unlink = Path.unlink
         failed = [False]
-        def unlink(path, *args, **kwargs):
-            if str(path) == 'main.py' and not failed[0]:
+        def deny_main(path):
+            # POSIX uses basename + dir_fd; Windows Path.unlink passes the full
+            # path. Both refer to the same test-owned, approved file.
+            if Path(path).name == 'main.py' and not failed[0]:
                 failed[0] = True
                 raise PermissionError('injected partial deletion')
+        def unlink(path, *args, **kwargs):
+            deny_main(path)
             return original(path, *args, **kwargs)
-        with patch('runner.maintenance.os.unlink', side_effect=unlink):
+        def path_unlink(path, *args, **kwargs):
+            # Python 3.9 pathlib caches an OS accessor; later versions call
+            # os.unlink directly. Intercept both supported call shapes.
+            deny_main(path)
+            return original_path_unlink(path, *args, **kwargs)
+        with patch('os.unlink', side_effect=unlink), patch.object(Path, 'unlink', path_unlink):
             result = self.manager.execute('reset', plan['plan_hash'])
+        self.assertTrue(failed[0], 'partial-deletion injection was not reached')
         self.assertFalse(result['success'])
         self.assertTrue(result['deleted_entries'])
         self.assertTrue(result['remaining'])
+        self.assertTrue((self.store.job_dir('sample') / 'main.py').exists())
         self.assertFalse(self.fake.services)
         fresh = self.manager.preview()
         self.assertFalse(fresh['blockers'], fresh)
         self.assertTrue(self.manager.execute('reset', fresh['plan_hash'])['success'])
+        self.assertFalse((self.store.jobs / 'sample').exists())
 
     def test_audit_separate_code_root_external_files_and_preview_scope(self):
         code = self.base / 'code/runner/__main__.py'

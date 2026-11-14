@@ -11,6 +11,8 @@ Use the intended venv's Python. Tests create isolated temporary data roots and l
 
 See [Windows regression boundaries](docs/windows-regression-phase1.md) for portable versus POSIX remote tests, synthetic launchd fixtures, narrow Windows symlink privilege skips, collection checks and the nine unresolved Windows observations. Do not treat a passing macOS run or mocked adapter test as native Windows validation.
 
+The [second Windows regression pass](docs/windows-regression-phase2.md) separates confirmed deadline/path-filter defects from fixture fixes and unresolved native worker observations, with isolated stderr/stack diagnostics and Windows rerun commands.
+
 New examples must be original synthetic code, work offline without API keys, use managed Output and empty schedules, document the result contract and avoid external writes. Tests must verify behavior/failure boundaries rather than mirror implementation. Check YAML through supported interfaces, not direct mutation of existing Jobs. Keep the `runner/`, `dashboard/`, `deployments/` module and Package helper contracts stable unless a separately reviewed change updates them together.
 
 ## Manual upstream-to-candidate changes

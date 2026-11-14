@@ -3,6 +3,7 @@ import json
 import math
 from pathlib import Path
 import re
+import socket
 import time
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode, urlsplit
@@ -14,6 +15,10 @@ from runner.common import ManagerError
 class NoRedirect(HTTPRedirectHandler):
     def redirect_request(self, *args, **kwargs):
         return None
+
+
+class DashboardRequestTimeout(ManagerError):
+    """An HTTP deadline expired, as distinct from other observation failures."""
 
 
 class DashboardRun:
@@ -45,7 +50,11 @@ class DashboardRun:
         except HTTPError as exc:
             # Never expose headers/session token or arbitrary server error bodies.
             raise ManagerError('Dashboard HTTP ' + str(exc.code) + ' (' + stage + ')', exc.code) from None
-        except (OSError, URLError, ValueError):
+        except (OSError, URLError, ValueError) as exc:
+            # socket.timeout became a TimeoutError alias after Python 3.9.
+            timeouts = (TimeoutError, socket.timeout)
+            if isinstance(exc, timeouts) or isinstance(getattr(exc, 'reason', None), timeouts):
+                raise DashboardRequestTimeout('Dashboard 응답 시간 초과 (' + stage + ')') from None
             raise ManagerError('Dashboard 접근/응답 오류 (' + stage + ')') from None
         finally:
             self.metrics.append({'stage': stage, 'elapsed_ms': round((time.monotonic()-start)*1000, 3)})
@@ -76,6 +85,15 @@ class DashboardRun:
                 value.update({k: record.get(k) for k in ('state', 'created_at', 'started_at', 'finished_at')})
             self.emit(value)
 
+        def wait_timeout(record):
+            # This is the last observed active state, never an inferred terminal
+            # state. The accepted Run remains resumable without another POST.
+            event('wait_timeout', record)
+            result.update({k: record.get(k) for k in ('created_at', 'started_at', 'finished_at')})
+            result.update(state=record['state'], wait_timed_out=True,
+                          resume='run-dashboard ' + job + ' --run ' + run_id)
+            return result
+
         try:
             session = self.request('/api/session', 'session')
             if session.get('root') != self.root:
@@ -105,16 +123,17 @@ class DashboardRun:
                     previous = record['state']
                 remaining = deadline - time.monotonic()
                 if remaining <= 0:
-                    event('wait_timeout', record)
-                    result.update({k: record.get(k) for k in ('created_at', 'started_at', 'finished_at')})
-                    result.update(state=record['state'], wait_timed_out=True,
-                                  resume='run-dashboard ' + job + ' --run ' + run_id)
-                    return result
+                    return wait_timeout(record)
                 time.sleep(min(poll_seconds, remaining))
                 if time.monotonic() >= deadline:
                     continue
-                record = self.request(prefix + '/runs/' + run_id, 'status',
-                                      timeout=min(10, max(.001, deadline-time.monotonic())))
+                try:
+                    record = self.request(prefix + '/runs/' + run_id, 'status',
+                                          timeout=min(10, max(.001, deadline-time.monotonic())))
+                except DashboardRequestTimeout:
+                    if time.monotonic() >= deadline:
+                        return wait_timeout(record)
+                    raise
             result.update({k: record.get(k) for k in ('state', 'exit_code', 'created_at', 'started_at', 'finished_at')})
             result['success'] = record['state'] == 'succeeded' and record.get('exit_code') == 0
             event('completed' if result['success'] else 'failed', record)
