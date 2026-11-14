@@ -9,6 +9,7 @@ import unittest
 
 from runner.execution import Execution
 from runner.schedule import Scheduler
+from runner.schedule_doctor import ScheduleDoctor
 from runner.store import Store, default_job
 
 
@@ -30,6 +31,11 @@ class NativeWindowsTests(unittest.TestCase):
                              "interval_seconds": seconds}
                     scheduler.save("sample", sid, entry, store.get("sample")["etag"], create=True)
                 self.assertTrue(all(scheduler.observed("sample", sid)["loaded"] for sid in ("one", "two")))
+                diagnosis = ScheduleDoctor(store, scheduler).scan()
+                self.assertFalse(diagnosis["errors"], diagnosis)
+                for name in names:
+                    row = next(row for row in diagnosis["schedules"] if row["id"] == name)
+                    self.assertEqual(row["status"], "healthy", row)
                 subprocess.run(["schtasks", "/Run", "/TN", names[0]], check=True, capture_output=True)
                 execution = Execution(store)
                 deadline = time.monotonic() + 30

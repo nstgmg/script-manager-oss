@@ -32,7 +32,9 @@ def task_definition_hash(task):
     """Whitespace/namespace-prefix independent checksum of the complete task definition.
 
     Description carries this checksum and is excluded to avoid a self-reference.
-    Unknown OS-added fields are deliberately not ignored: fail closed on drift.
+    Unknown OS-added fields are deliberately not ignored. After registration,
+    ownership may instead use the original installation's exact recorded OS
+    export; see ScheduleDoctor._windows_recorded_definition.
     """
     q = "{" + NS + "}"
     def value(element):
@@ -42,6 +44,16 @@ def task_definition_hash(task):
                 element.text if element.text and element.text.strip() else "",
                 [value(child) for child in element if child.tag != q + "Description"]]
     return digest(json.dumps(value(task), sort_keys=True, ensure_ascii=False).encode())
+
+
+def query_error(context, result=None, cause=None):
+    """OS observation failure is not evidence that the installation path is gone."""
+    detail = str(cause) if cause is not None else (
+        "exit=" + str(result.returncode) + ": " + (result.stderr.strip() or "OS 오류 상세 없음"))
+    return ManagerError(
+        "Windows Task Scheduler " + context + " 조회 실패: " + detail +
+        ". OS 접근 권한·sandbox 실행 제한·조회 도구를 확인하세요. "
+        "원본 경로/파일 누락으로 판단하지 않으며 예약과 데이터를 보존합니다.", 502)
 
 
 def task_xml(args, workdir, entry, author, generation, owner=None):
@@ -112,9 +124,12 @@ class WindowsScheduler(Scheduler):
             raise ManagerError("Windows Task Scheduler는 Windows에서만 사용할 수 있습니다.")
 
     def call(self, args, check=True):
+        querying = args[0].lower() == "powershell.exe" or any(arg.lower() == "/query" for arg in args)
         try:
             result = self.command(args, capture_output=True, stdin=subprocess.DEVNULL, timeout=20)
         except (OSError, subprocess.SubprocessError) as exc:
+            if querying:
+                raise query_error("명령", cause=exc) from exc
             raise ManagerError("스케줄 명령 실행·관찰 실패: " + str(exc), 502) from exc
         def decoded(value):
             if isinstance(value, str):
@@ -132,6 +147,8 @@ class WindowsScheduler(Scheduler):
         result.stdout = decoded(result.stdout)
         result.stderr = decoded(result.stderr)
         if check and result.returncode:
+            if querying:
+                raise query_error("명령", result)
             raise ManagerError("스케줄 명령 실패: " + result.stderr.strip(), 502)
         return result
 
@@ -160,10 +177,10 @@ class WindowsScheduler(Scheduler):
             return result.stdout
         listing = self.call(["schtasks", "/Query", "/FO", "CSV", "/NH"], False)
         if listing.returncode:
-            raise ManagerError("Windows 예약 상태를 확인하지 못했습니다: " + (listing.stderr or result.stderr).strip(), 502)
+            raise query_error("예약 상태/목록", listing)
         name = self.task_name(job_id, schedule_id)
         if any(row and row[0].lower() == name.lower() for row in csv.reader(io.StringIO(listing.stdout))):
-            raise ManagerError("Windows 예약 정의를 읽을 수 없습니다: " + name, 502)
+            raise query_error("예약 정의 " + name, result)
         return None
 
     def observed(self, job_id, schedule_id=None):
@@ -196,7 +213,7 @@ class WindowsScheduler(Scheduler):
                 ids.add(sid)
         result = self.call(["schtasks", "/Query", "/FO", "CSV", "/NH"], False)
         if result.returncode:
-            raise ManagerError("Windows 예약 목록을 확인하지 못했습니다: " + result.stderr.strip(), 502)
+            raise query_error("예약 목록", result)
         prefix = self.task_name(job_id) + "."
         for row in csv.reader(io.StringIO(result.stdout)):
             name = row[0] if row else ""

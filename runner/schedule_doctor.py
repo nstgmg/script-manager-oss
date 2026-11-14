@@ -135,11 +135,11 @@ class ScheduleDoctor:
         return rows
 
     def _windows(self):
-        from runner.windows_schedule import NS, task_definition_hash
+        from runner.windows_schedule import NS, query_error, task_definition_hash
         q = "{" + NS + "}"
         listing = self.scheduler.call(["schtasks", "/Query", "/FO", "CSV", "/NH"], False)
         if listing.returncode:
-            raise ManagerError("Windows 예약 목록 조회 실패: " + listing.stderr.strip(), 502)
+            raise query_error("예약 목록", listing)
         rows = []
         for values in csv.reader(io.StringIO(listing.stdout)):
             if not values or not values[0].lower().startswith("\\" + PREFIX):
@@ -156,15 +156,23 @@ class ScheduleDoctor:
                 action = actions[0]
                 text = xml.findtext(q + "RegistrationInfo/" + q + "Description", "")
                 owner = json.loads(text[len(DESCRIPTION):]) if text.startswith(DESCRIPTION) else None
+                if text.startswith(DESCRIPTION) and not isinstance(owner, dict):
+                    raise ValueError("Windows 소유 메타데이터가 객체가 아닙니다. 보존합니다.")
                 if owner is not None:
+                    required = owner.get("required_files", [])
+                    if (type(owner.get("version")) is not int or not isinstance(required, list)
+                            or any(not isinstance(p, str) or not Path(p).is_absolute() or ".." in Path(p).parts for p in required)):
+                        raise ValueError("Windows 소유 메타데이터의 버전/필수 경로가 손상되었습니다.")
                     expected_hash = owner.get("definition_sha256")
-                    if expected_hash and expected_hash != task_definition_hash(xml):
-                        raise ValueError("Windows 전체 예약 정의 체크섬 불일치")
-                    if not expected_hash:
-                        match = LABEL.fullmatch(name.lstrip("\\"))
-                        if (not match or match[1] != self.scheduler.namespace
-                                or self.scheduler.state(match[2], match[3]).get("task_sha256") != row["definition_hash"]):
-                            raise ValueError("전체 체크섬 없는 이전 Windows 메타데이터는 원본 상태가 필요합니다.")
+                    if "definition_sha256" in owner and (
+                            not isinstance(expected_hash, str) or not re.fullmatch(r"[0-9a-f]{64}", expected_hash)):
+                        raise ValueError("Windows 소유 메타데이터의 정의 체크섬이 손상되었습니다.")
+                    if not expected_hash or expected_hash != task_definition_hash(xml):
+                        # Registration can normalize *any* XML field (including
+                        # account names to SIDs). Do not guess which changes are
+                        # harmless or omit Actions/Triggers/Principals. Require
+                        # the exact OS export saved by the original installation.
+                        self._windows_recorded_definition(row, owner)
                 if owner is None:
                     match = LABEL.fullmatch(name.lstrip("\\"))
                     if not match or match[1] != self.scheduler.namespace:
@@ -173,6 +181,8 @@ class ScheduleDoctor:
                     state = self.scheduler.state(job, sid)
                     if state.get("task_sha256") != row["definition_hash"]:
                         raise ValueError("이전 Windows 예약 체크섬을 확인할 수 없습니다.")
+                    if text != "Script Manager " + str(state.get("generation")):
+                        raise ValueError("이전 Windows 예약의 설명 메타데이터가 다릅니다.")
                     legacy = {"job_id": job, "schedule_id": sid, "root": str(self.store.root), "generation": state.get("generation")}
                 else:
                     legacy = owner
@@ -187,6 +197,34 @@ class ScheduleDoctor:
             row["fingerprint"] = fingerprint(row)
             rows.append(row)
         return rows
+
+    def _windows_recorded_definition(self, row, owner):
+        """Trust the full post-registration export, only with its original identity.
+
+        Read-only compatibility with existing state; never learn a new baseline
+        during diagnosis. Orphans lacking this evidence remain unknown when the
+        embedded pre-registration checksum cannot validate the export.
+        """
+        root = owner.get("root")
+        if not isinstance(root, str) or not Path(root).is_absolute() or ".." in Path(root).parts:
+            raise ValueError("Windows 원본 상태의 절대 경로를 확인할 수 없습니다.")
+        job, sid = identifier(owner.get("job_id")), owner.get("schedule_id")
+        if sid:
+            identifier(sid)
+        state_name = job + ("." + sid if sid else "") + ".json"
+        state = read_json(contained(Path(root), "runtime/schedules/" + state_name))
+        identity = read_json(contained(Path(root), "runtime/installation.json"))
+        if (not isinstance(state, dict) or not isinstance(identity, dict)
+                or identity.get("version") != 1 or identity.get("root") != root
+                or not isinstance(identity.get("installation_id"), str)
+                or not re.fullmatch(r"[0-9a-f]{32}", identity["installation_id"])
+                or identity["installation_id"] != owner.get("installation_id")
+                or state.get("applied") is not True
+                or state.get("phase", "applied") != "applied"
+                or state.get("generation") != owner.get("generation")
+                or state.get("task_sha256") != row["definition_hash"]):
+            raise ValueError("Windows 전체 예약 정의 체크섬 불일치: 원본 설치 ID·세대·등록 후 XML 증거를 확인할 수 없습니다. 예약을 보존합니다.")
+        row["definition_evidence"] = "recorded-os-export"
 
     def _systemctl(self, *args, check=True):
         return self.scheduler.call(["systemctl", "--user", *args], check)
@@ -302,7 +340,7 @@ class ScheduleDoctor:
         result = self.scheduler.call(["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", script])
         state = result.stdout.strip()
         if state not in ("1", "2", "3", "4"):
-            raise ManagerError("Windows 예약 실행 상태를 확인할 수 없습니다. 종료하지 않고 보존합니다.", 409)
+            raise ManagerError("Windows 예약 실행 상태 조회 결과를 확인할 수 없습니다. OS 접근 권한·sandbox 실행 제한을 확인하세요. 원본 경로 누락으로 판단하지 않고 예약과 데이터를 보존합니다.", 502)
         return state in ("2", "4")
 
     def _windows_idle(self, label):

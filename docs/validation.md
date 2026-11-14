@@ -1,5 +1,126 @@
 # Validation records
 
+## Windows Task Scheduler ownership — 2026-11-15
+
+Scope: ownership diagnosis and query-error messages, on top of `d3b2009` on
+`test/windows-native-20261115`. Existing user data, native schedules, services,
+credentials and ACLs were not modified. No migration, real Job/OS scheduling,
+push or deployment was performed. Tests use isolated synthetic data/fake OS calls;
+the existing native Task Scheduler test remains opt-in.
+
+### Supplied native evidence and cause
+
+The owner supplied `WINDOWS_TASK_SCHEDULER_HANDOFF.md`, dated 2026-11-15 KST for
+product commit `d3b20094edfd6affbac1281626f116d17a1c2ccc`. This is evidence from an
+**external actual Windows run of the old code**, not a Windows run performed here
+or proof of the fixed product. It reports a calendar-triggered Run succeeded with
+exit code 0, and removal of the temporary task afterward. The generated XML was
+reconstructed after validation, not the preserved original `/Create` input. No
+new OS/Python version claim is inferred from this document.
+
+Observed differences include URI, IdleSettings and UseUnifiedSchedulingEngine
+addition; account-name to SID substitution for the same reported user; omission
+of RunLevel and several explicit defaults; and element reordering. In particular
+UseUnifiedSchedulingEngine appears as **true**, so treating all extra settings as
+ignorable/default-false would be unsafe. The [Task Scheduler schema](https://learn.microsoft.com/en-us/windows/win32/taskschd/task-scheduler-schema)
+describes these fields but does not establish the actual export behavior of every
+Windows build. No such allowlist is used by this fix.
+
+The original embedded/generated definition hash was `62556afa…`, while the
+exported structural definition hash was `6409be6a…`. Crucially, the registered
+`state.task_sha256` **equaled** `doctor.definition_hash` (`2d1292d7…`) and observed
+file_matches was true. Doctor rejected the pre-registration embedded checksum
+before considering this already recorded post-registration evidence.
+
+The supplied Base64 was decoded and its three selected anonymized byte lengths
+and SHA-256 values verified. [Fixture provenance](../tests/fixtures/windows-task-scheduler/README.md)
+records the limits: UTF-8 file bytes have a UTF-16 XML declaration; the registered
+file contains 41 CR-CR-CR-LF sequences; preserved file bytes are not claimed to be
+the original OS output bytes; anonymization invalidates retained original hashes.
+State/YAML/structural/file hashes are distinct domains and are not substituted.
+Only the anonymized XML pair and state extract are included as test fixtures;
+no original identity mapping or real Job/Run data was imported.
+
+### Change and preservation boundaries
+
+Doctor accepts a mismatch of the pre-registration hash only when the original
+installation identity/root, applied state/generation and **exact full current OS
+export hash** all match the saved registration evidence. Other live installations
+are checked at their original roots; healthy foreign installations stay protected.
+The result exposes `definition_evidence=recorded-os-export`. No XML field is
+ignored: Actions, triggers, principal/SID/logon/run level, paths, context/IDs,
+OS-added settings and unknown fields remain covered by the recorded whole XML.
+Diagnosis never rewrites state, learns a new baseline, re-registers tasks or
+repairs identity. Matching saved evidence assumes the existing trusted local
+filesystem/registration boundary, not a cryptographic signature against an actor
+able to replace both OS definitions and local state. Concurrent OS-editor risks
+and the existing last-moment whole-definition checks remain unchanged.
+
+Existing metadata without an embedded hash still needs the original identity and
+full state evidence; older metadata-free tasks need the original description,
+arguments and raw checksum. Malformed new metadata is not adopted as legacy.
+Without an original baseline/identity, a normalized orphan stays unknown rather
+than being inferred safe from a partial XML projection. A later export whose
+serialization differs from the saved whole hash also stays unknown. The removed
+cleanup state in the handoff is not treated as the earlier registration state.
+
+Listing/XML/running-state errors now explicitly identify OS query/permissions,
+sandbox restrictions or missing query tools, instead of implying that the source
+project path disappeared. Errors remain blockers for removal/reset. No automatic
+elevation, retry-as-another-user or weakening of ownership checks was added.
+
+### Regression and actual-host verification
+
+- `tests.test_windows_ownership`: 17 synthetic cases, including normalization,
+  complete critical-field/unknown-field tamper detection, original identity/state
+  corruption, legacy compatibility, another installation, no diagnostic writes,
+  protected update/removal and denial/timeout/missing-tool/reset blockers.
+- `tests.test_windows_ownership_handoff`: 7 evidence-based cases. They verify exact
+  anonymized bytes and observed XML shape, then **rebind/recompute** paths,
+  namespace, definition/export hashes and local state in isolated host fixtures.
+  Replay accepts the recorded export and rejects changed SID, idle/unified-engine
+  settings, omitted-default injection, trigger/path drift, wrong hash domains and
+  removed state. This is macOS simulation/replay, not native Windows execution.
+- The opt-in native Windows test now asserts doctor reports both registered tasks
+  healthy before triggering its existing synthetic Run. It was **not enabled**
+  here. Existing tests for raw unnormalized tasks, orphan removal, running tasks,
+  rollback races and foreign replacements remain in the full suite.
+
+Actual host: macOS ARM64, existing venv Python 3.9.6, Node 20.11.1. No native
+Windows interpreter/terminal is available here.
+
+| Check | Result on this host |
+| --- | --- |
+| New synthetic ownership cases | **17 passed** |
+| Evidence-based byte checks and fixture replays | **7 passed** |
+| Final Python suite, `.venv/bin/python -m unittest discover -v` | **325 tests: 318 passed, 7 skipped**, no failures/errors, 44.057s |
+| Node UI, `node --test tests/test_dashboard_ui.cjs` | **71 passed**, no failures/skips |
+| Whitespace review | `git diff --check` passed |
+
+The seven skips are the Windows PowerShell parser, Windows ACL readback, opt-in
+Windows Task Scheduler integration, three opt-in launchd cases and one opt-in
+native maintenance case. Native opt-ins stayed unset. Full Python validation used
+approved loopback/Chrome and read-only OS inventory access required by existing
+tests; no production service was started or controlled. An earlier full run of
+the 17 synthetic cases also passed (318 total / 7 skips), before the evidence
+arrived; the final run above includes the 7 additional handoff cases. Local ignored
+logs: `.cache/windows-task-ownership-python.txt` and
+`.cache/windows-task-ownership-node.txt`.
+
+### Remaining native verification
+
+On the same Windows/unelevated user and Codex sandbox contexts that produced the
+handoff, re-run read-only doctor/observed against a separately authorized temporary
+registration with the fixed commit. Confirm healthy/recorded-os-export, unchanged
+identity/state/XML, original owner/generation and SID, then separately test foreign
+Action/Trigger/Principal/path edits and query denial. Do not change existing
+operating schedules or resubmit the earlier removed task merely to gather evidence.
+Run the opt-in native test only with explicit temporary-task authorization; record
+OS/Python/agent versions and fixed commit. Windows registration/readback, export
+serialization stability, native tamper/rollback and sandbox query diagnostics of
+the fixed product remain pending. The supplied old-code calendar success does
+not prove these checks, interval execution or full Task Scheduler support.
+
 ## Windows runtime ACL compatibility — 2026-11-15
 
 Scope: local directory creation and safe startup error handling only. No existing data/ACL migration, Everyone grant, recursive ACL reset, elevation, real Job submission, active Schedule change, service control, SSH, push or dependency change. Tests use isolated synthetic roots. No `.env` values were read.
