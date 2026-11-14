@@ -1,5 +1,6 @@
 import base64
 import json
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -9,7 +10,6 @@ from unittest.mock import patch
 
 from deployments.client import Deployment
 from deployments.packages import Packages
-from deployments.remote_runtime import Controller, load, locked, safe
 from runner.common import ManagerError
 from runner.store import Store, default_job, dump_yaml
 
@@ -56,7 +56,11 @@ class FakeSystemd:
 
 
 class DeploymentTests(unittest.TestCase):
+    remote_integration = True
+
     def setUp(self):
+        if self.remote_integration and os.name != "posix":
+            self.skipTest("POSIX remote integration requires flock, UID ownership and release symlinks; client contracts run separately")
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.base = Path(self.temp.name).resolve()
@@ -72,11 +76,12 @@ class DeploymentTests(unittest.TestCase):
         self.store.create(config)
         (self.store.root / "deployments").mkdir()
         (self.store.root / "deployments/targets.yaml").write_text(dump_yaml(
-            {"version": 1, "targets": {"test": {"ssh_host": "never-contacted", "root": str(self.remote)}}}))
+            {"version": 1, "targets": {"test": {"ssh_host": "never-contacted", "root": str(self.remote) if self.remote_integration else "/srv/script-manager-test"}}}))
         self.calls = []
         self.deploy = Deployment(self.store, self.transport)
 
     def controller(self, create=False):
+        from deployments.remote_runtime import Controller
         return Controller(self.remote, "sample", self.home, self.fake, create)
 
     def transport(self, target, payload):
@@ -121,20 +126,6 @@ class DeploymentTests(unittest.TestCase):
         self.deploy.rollback("sample", "test", first["release"])
         self.assertEqual(controller.current(), first["release"])
         self.assertEqual(len(self.deploy.history("sample")), 3)
-
-    def test_same_package_can_plan_for_multiple_targets(self):
-        package_id = Packages(self.store).create("sample")["id"]
-        second = self.base / "remote-second"
-        (self.store.root / "deployments/targets.yaml").write_text(dump_yaml({"version": 1, "targets": {
-            "test": {"ssh_host": "never-contacted", "root": str(self.remote)},
-            "second": {"ssh_host": "never-contacted-2", "root": str(second)},
-        }}))
-        first_plan = self.deploy.plan("sample", "test", package_id)
-        second_plan = self.deploy.plan("sample", "second", package_id)
-        self.assertEqual(first_plan["package_id"], second_plan["package_id"])
-        self.assertEqual(first_plan["package_hash"], second_plan["package_hash"])
-        self.assertNotEqual(first_plan["plan_hash"], second_plan["plan_hash"])
-        self.assertEqual(self.calls, [])
 
     def test_partial_failure_restores_previous_code_units_and_timer(self):
         first = self.do_deploy()
@@ -198,6 +189,7 @@ class DeploymentTests(unittest.TestCase):
         self.assertIn("sample job completed", (logdirs[0] / "stdout.log").read_text())
 
     def test_run_guard_and_external_unit_preservation(self):
+        from deployments.remote_runtime import locked, safe
         self.do_deploy()
         controller = self.controller()
         with locked(safe(controller.job, "run.lock")):
@@ -208,6 +200,27 @@ class DeploymentTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             controller.activate(controller.current())
         self.assertEqual(service.read_text(), "external unit")
+
+class DeploymentClientTests(unittest.TestCase):
+    """Portable client contracts; no POSIX remote helper or SSH execution."""
+    remote_integration = False
+    setUp = DeploymentTests.setUp
+
+    def transport(self, target, payload):
+        self.fail("Offline client contract must not invoke SSH or the remote helper")
+
+    def test_same_package_can_plan_for_multiple_targets(self):
+        package_id = Packages(self.store).create("sample")["id"]
+        (self.store.root / "deployments/targets.yaml").write_text(dump_yaml({"version": 1, "targets": {
+            "test": {"ssh_host": "never-contacted", "root": str(self.remote) if self.remote_integration else "/srv/script-manager-test"},
+            "second": {"ssh_host": "never-contacted-2", "root": "/srv/script-manager-second"},
+        }}))
+        first_plan = self.deploy.plan("sample", "test", package_id)
+        second_plan = self.deploy.plan("sample", "second", package_id)
+        self.assertEqual(first_plan["package_id"], second_plan["package_id"])
+        self.assertEqual(first_plan["package_hash"], second_plan["package_hash"])
+        self.assertNotEqual(first_plan["plan_hash"], second_plan["plan_hash"])
+        self.assertEqual(self.calls, [])
 
     def test_ssh_options_and_failure_not_reported_as_success(self):
         target = self.deploy.target("test")

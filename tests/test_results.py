@@ -13,6 +13,7 @@ from runner.__main__ import main
 from runner.common import ManagerError, write_json
 from runner.results import Results, load_rows
 from runner.store import Store, default_job
+from tests.platform_helpers import symlink_or_skip
 
 
 class ResultsTests(unittest.TestCase):
@@ -298,7 +299,7 @@ class ResultsTests(unittest.TestCase):
         path.unlink()
         outside = self.root / 'outside.json'
         outside.write_text('[{"title":"must not read"}]')
-        path.symlink_to(outside)
+        symlink_or_skip(self, path, outside)
         result = self.query()
         self.assertEqual(result['total'], 0)
         self.assertIn('unreadable_output', self.codes(result))

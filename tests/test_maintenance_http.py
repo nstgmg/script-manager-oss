@@ -11,6 +11,7 @@ from dashboard.server import Dashboard
 from runner.schedule import Scheduler
 from runner.schedule_doctor import ScheduleDoctor
 from runner.store import default_job
+from tests.platform_helpers import mock_launchd
 from tests.test_maintenance import DoctorLaunchctl
 
 
@@ -18,8 +19,7 @@ class MaintenanceHTTPTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
-        self.patcher = patch("runner.schedule.platform.system", return_value="Darwin")
-        self.patcher.start(); self.addCleanup(self.patcher.stop)
+        mock_launchd(self)
         self.fake = DoctorLaunchctl()
         self.server = Dashboard(Path(self.temp.name) / "project", 0)
         self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)

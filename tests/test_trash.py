@@ -7,6 +7,7 @@ import uuid
 
 from runner.common import ManagerError
 from runner.store import Store, default_job
+from tests.platform_helpers import symlink_or_skip
 
 
 class TrashTests(unittest.TestCase):
@@ -54,16 +55,24 @@ class TrashTests(unittest.TestCase):
         self.assertTrue(item["deleted_at_estimated"])
         self.assertEqual(self.store.restore(trash_id)["config"]["name"], "삭제한 작업")
 
-    def test_invalid_paths_links_and_damaged_yaml_cannot_be_restored(self):
+    def test_invalid_paths_and_damaged_yaml_cannot_be_restored(self):
         with self.assertRaises(ManagerError):
             self.store.restore("../sample")
         deleted = self.delete()
-        (self.store.runtime / "trash" / ("alias-" + uuid.uuid4().hex)).symlink_to(deleted["recover_from"])
         (Path(deleted["recover_from"]) / "job.yaml").write_text("invalid: [")
         self.assertEqual(len(self.store.trash()), 1)
         self.assertIn("error", self.store.trash()[0])
         with self.assertRaises(ManagerError):
             self.store.restore(deleted["trash_id"])
+        self.assertTrue(Path(deleted["recover_from"]).exists())
+
+    def test_trash_symlink_cannot_be_restored(self):
+        deleted = self.delete()
+        alias = "alias-" + uuid.uuid4().hex
+        symlink_or_skip(self, self.store.runtime / "trash" / alias, deleted["recover_from"], directory=True)
+        self.assertEqual([row["trash_id"] for row in self.store.trash()], [deleted["trash_id"]])
+        with self.assertRaises(ManagerError):
+            self.store.restore(alias)
         self.assertTrue(Path(deleted["recover_from"]).exists())
 
     def test_concurrent_restore_of_same_job_id_has_one_winner(self):

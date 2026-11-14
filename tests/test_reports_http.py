@@ -9,6 +9,7 @@ from unittest.mock import patch
 from dashboard.server import Dashboard
 from runner.reports import Reports
 from runner.store import default_job
+from tests.platform_helpers import symlink_or_skip
 
 
 class ReportHTTPTests(unittest.TestCase):
@@ -132,18 +133,22 @@ class ReportHTTPTests(unittest.TestCase):
         self.assertEqual(self.request("POST", "/api/jobs/missing/report/destination", {})[0], 404)
         self.assertEqual(self.server.store.get("sample"), before)
 
-    def test_preview_rejects_links_foreign_files_and_other_job_collisions(self):
+    def test_preview_rejects_foreign_files_and_other_job_collisions(self):
         route = "/api/jobs/sample/report/destination"
         root = self.server.store.root
         (root / "existing").mkdir()
         (root / "existing/sample.html").write_text("unowned")
         self.assertEqual(self.request("POST", route, {"output_dir": "existing"})[0], 409)
-        (root / "linked").symlink_to(root / "existing", target_is_directory=True)
-        self.assertEqual(self.request("POST", route, {"output_dir": "linked"})[0], 400)
         config = default_job("other")
         config["report"] = {"enabled": True, "source": "data.json", "output_dir": "exports", "filename": "same.html"}
         self.server.store.create(config)
         self.assertEqual(self.request("POST", route, {"output_dir": "exports", "filename": "same.html"})[0], 409)
+
+    def test_preview_rejects_symlink(self):
+        root = self.server.store.root
+        (root / "existing").mkdir()
+        symlink_or_skip(self, root / "linked", root / "existing", directory=True)
+        self.assertEqual(self.request("POST", "/api/jobs/sample/report/destination", {"output_dir": "linked"})[0], 400)
 
     def test_report_folder_open_is_fixed_to_validated_published_report(self):
         route = "/api/jobs/sample/report/open-directory"

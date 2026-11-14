@@ -13,6 +13,7 @@ from runner.schedule_doctor import ScheduleDoctor
 from runner.store import Store
 from tests import test_maintenance as mac_fixtures
 from tests import test_schedule_doctor_platforms as platform_fixtures
+from tests.platform_helpers import symlink_or_skip
 
 
 class DataAuditTests(unittest.TestCase):
@@ -147,12 +148,18 @@ class MoreDataAuditTests(unittest.TestCase):
         from runner.common import contained
         with self.assertRaises(ManagerError):
             contained(self.store.root, '../external/result.html')
-        folder.rmdir(); folder.symlink_to(self.base / 'external', target_is_directory=True)
+
+    def test_audit_symlink_blocks_deletion(self):
+        folder = self.store.root / 'workspace'
+        symlink_or_skip(self, folder, self.base / 'external', directory=True)
         self.assertTrue(self.manager.preview()['blockers'])
 
     def test_audit_directory_replacement_does_not_touch_external_files(self):
         folder = self.store.root / 'workspace'; folder.mkdir(); (folder/'file').write_text('approved')
         external = self.base / 'external'; external.mkdir(); (external/'file').write_text('keep')
+        probe = self.base / 'link-probe'
+        symlink_or_skip(self, probe, external, directory=True)
+        probe.unlink()
         plan = self.manager.preview()
         original = self.manager._delete_tree
         def replaced(path, records, anchors, progress):

@@ -14,6 +14,7 @@ from runner.schedule import Scheduler
 from runner.store import Store, default_job, dump_yaml, schedules, validate
 from tests.test_schedule import LaunchctlFake
 from tests import test_deployments as deployment_tests
+from tests.platform_helpers import mock_launchd
 
 
 def calendar(sid="morning", enabled=True):
@@ -27,6 +28,7 @@ def interval(sid="check", enabled=True):
 
 class MultiScheduleTests(unittest.TestCase):
     def setUp(self):
+        mock_launchd(self)
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.store = Store(self.temp.name)
@@ -36,9 +38,6 @@ class MultiScheduleTests(unittest.TestCase):
         self.store.create(default_job("other"))
         self.fake = LaunchctlFake()
         self.scheduler = Scheduler(self.store, Path(self.temp.name) / "agents", self.fake)
-        patcher = patch("runner.schedule.platform.system", return_value="Darwin")
-        patcher.start()
-        self.addCleanup(patcher.stop)
 
     def save(self, entry, create=False, job="sample"):
         return self.scheduler.save(job, entry["id"], entry, self.store.get(job)["etag"], create)
@@ -274,6 +273,7 @@ class MultiScheduleTests(unittest.TestCase):
 
 
 class MultiDeploymentTests(unittest.TestCase):
+    remote_integration = True
     setUp = deployment_tests.DeploymentTests.setUp
     controller = deployment_tests.DeploymentTests.controller
     transport = deployment_tests.DeploymentTests.transport

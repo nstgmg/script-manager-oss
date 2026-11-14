@@ -1,5 +1,6 @@
 import http.client
 import json
+import os
 import tempfile
 import threading
 import unittest
@@ -8,10 +9,10 @@ from pathlib import Path
 from unittest.mock import patch
 from dashboard.server import Dashboard
 from deployments.client import Deployment
-from deployments.remote_runtime import Controller
 from runner.schedule import Scheduler
 from runner.store import dump_yaml
 from tests.test_deployments import FakeSystemd
+from tests.platform_helpers import mock_launchd
 from tests.test_schedule import LaunchctlFake
 
 
@@ -188,6 +189,7 @@ class DashboardTests(unittest.TestCase):
             self.assertEqual(ssh.call_args.args[2]["info"]["plan_hash"], updated["plan_hash"])
 
     def test_schedule_editor_save_conflict_apply_observe_and_restore_failure(self):
+        mock_launchd(self)
         scheduler = Scheduler(self.server.store, self.server.store.root / "agents", LaunchctlFake())
         with patch("dashboard.server.Scheduler", return_value=scheduler):
             job = json.loads(self.request("POST", "/api/jobs", {"id": "sample", "name": "예약"})[1])
@@ -219,9 +221,9 @@ class DashboardTests(unittest.TestCase):
             self.assertTrue(self.server.store.get("sample")["config"]["schedule"]["enabled"])
 
     def test_interval_calendar_round_trip_over_http(self):
+        mock_launchd(self)
         scheduler = Scheduler(self.server.store, self.server.store.root / "agents", LaunchctlFake())
-        with patch("dashboard.server.Scheduler", return_value=scheduler), \
-                patch("runner.schedule.platform.system", return_value="Darwin"):
+        with patch("dashboard.server.Scheduler", return_value=scheduler):
             job = json.loads(self.request("POST", "/api/jobs", {"id": "sample", "name": "간격"})[1])
             original = {k: v for k, v in job["config"].items() if k not in ("schedule", "schedules")}
             for schedule in (
@@ -255,9 +257,10 @@ class DashboardTests(unittest.TestCase):
         self.assertEqual(self.request("PUT", "/api/jobs/sample", {"fields": {"schedules": []}, "etag": updated["etag"]})[0], 400)
 
     def test_multi_schedule_crud_and_failed_apply_over_http(self):
+        mock_launchd(self)
         from tests.test_multi_schedule import calendar, interval
         scheduler = Scheduler(self.server.store, self.server.store.root / "agents", LaunchctlFake())
-        with patch("dashboard.server.Scheduler", return_value=scheduler), patch("runner.schedule.platform.system", return_value="Darwin"):
+        with patch("dashboard.server.Scheduler", return_value=scheduler):
             job = json.loads(self.request("POST", "/api/jobs", {"id": "sample"})[1])
             self.assertEqual(job["config"]["schedules"], [])
             endpoint = "/api/jobs/sample/schedules"
@@ -287,6 +290,10 @@ class DashboardTests(unittest.TestCase):
 
     def test_integrated_http_manage_run_schedule_deploy_and_remove(self):
         """All public actions, with remote OS/SSH replaced by a temp sandbox."""
+        if os.name != "posix":
+            self.skipTest("POSIX end-to-end fixture uses /bin/sh and Linux remote Controller; common HTTP contracts run separately")
+        from deployments.remote_runtime import Controller
+        mock_launchd(self)
         root = self.server.store.root
         remote, home = root / "remote", root / "remote-home"
         home.mkdir()

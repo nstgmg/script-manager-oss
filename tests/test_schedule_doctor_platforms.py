@@ -1,5 +1,6 @@
 """Windows and Linux native interfaces simulated on the test host."""
 import json
+import os
 from pathlib import Path
 import shutil
 import subprocess
@@ -156,6 +157,8 @@ class DoctorSystemd:
 
 class LinuxDoctorTests(unittest.TestCase):
     def setUp(self):
+        if os.name != "posix":
+            self.skipTest("Linux remote fixture requires POSIX flock, UID ownership and release symlinks")
         # Only Linux fixtures need the POSIX-only remote helper. Windows tests
         # import DoctorTasks from this module and must not import fcntl.
         from deployments.remote_runtime import Controller

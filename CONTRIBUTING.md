@@ -9,6 +9,8 @@ node --test tests/test_dashboard_ui.cjs
 
 Use the intended venv's Python. Tests create isolated temporary data roots and loopback servers; SSH/systemd/scheduler changes use fakes. Chrome tests use temporary profiles and offline pages. Native launchd/Windows tests are opt-in: leave `SCRIPT_MANAGER_TEST_LAUNCHD` and `SCRIPT_MANAGER_TEST_WINDOWS` unset for normal validation. Do not enable them or use real SSH/OS schedules without explicit authorization. Missing tools and platform skips must be disclosed. Repeat the full suite only after relevant changes/failures justify it.
 
+See [Windows regression boundaries](docs/windows-regression-phase1.md) for portable versus POSIX remote tests, synthetic launchd fixtures, narrow Windows symlink privilege skips, collection checks and the nine unresolved Windows observations. Do not treat a passing macOS run or mocked adapter test as native Windows validation.
+
 New examples must be original synthetic code, work offline without API keys, use managed Output and empty schedules, document the result contract and avoid external writes. Tests must verify behavior/failure boundaries rather than mirror implementation. Check YAML through supported interfaces, not direct mutation of existing Jobs. Keep the `runner/`, `dashboard/`, `deployments/` module and Package helper contracts stable unless a separately reviewed change updates them together.
 
 ## Manual upstream-to-candidate changes

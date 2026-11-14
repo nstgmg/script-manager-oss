@@ -1,5 +1,46 @@
 # Validation records
 
+## Windows regression phase 1 — 2026-11-15
+
+Baseline: `b3e497d` and the owner's attached Windows regression report. Changes
+are limited to tests and documentation. See [scope, platform boundaries, symlink
+SKIP policy and the nine deferred observations](windows-regression-phase1.md).
+No product code, security checks, operating data or native schedules changed.
+
+Actual host: macOS 15.6.1 ARM64, existing venv CPython 3.9.6; no dependency changes.
+Both native scheduler opt-ins were removed from the full-suite environment.
+
+| Final check | Result |
+| --- | --- |
+| `env -u SCRIPT_MANAGER_TEST_WINDOWS -u SCRIPT_MANAGER_TEST_LAUNCHD .venv/bin/python -m unittest discover -v` | **338 tests: 331 passed, 7 skipped**, no failures/errors, 45.711s, exit 0 |
+| `node --test tests/test_dashboard_ui.cjs` | **71 passed**, no failures/skips, exit 0 |
+| Fresh-process import isolation | Dashboard **13**, deployments **10**, multi-schedule **15** methods collect with remote helper/fcntl imports blocked; existing ownership/handoff checks retained |
+| Fixture regressions | Missing host getuid + Windows factory baseline still execute launchd fake tests; portable deployment clients run without remote imports; only Windows symlink privilege error 1314 skips |
+| Source review | Product directories unchanged; `git diff --check` passed |
+
+The seven skips are the Windows PowerShell parser, Windows native ACL readback,
+Windows native Task Scheduler case, three opt-in launchd cases and the opt-in
+native maintenance case. All real symlink fixtures in this macOS full run ran;
+their security assertions were not skipped. Browser checks also ran in the full
+Python suite. Temporary test HTTP servers were fixture-owned, not resident
+Dashboard services.
+
+The first sandboxed focused attempt ran 33 cases with 7 errors because existing
+read-only launchctl inventory checks were restricted. This was an access failure,
+not a diagnosed product defect, and no test was changed to suppress it. The
+approved initial full run passed 338 cases (7 skips, 45.082s). After strengthening
+the fresh-process fixture regression and final fixture cleanup, the final full
+run above passed. Local ignored evidence is under
+`.cache/windows-regression-phase1-20261115/` (`restricted-focused.log`,
+`adapters.log`, `boundaries.log`, `mac-initial-full.log`, `mac-final-full.log`,
+`node.log`).
+
+No native Windows rerun was available here. Windows filesystem, ACL and worker
+behavior remain subject to the prepared Windows rerun; the nine deferred errors
+were classified, not fixed. Restoring collection may expose additional previously
+unexecuted Windows test bodies. No push, real SSH, native registration or live
+service control was performed.
+
 ## Windows ownership test import isolation — 2026-11-15
 
 The owner reported native Windows import failure for

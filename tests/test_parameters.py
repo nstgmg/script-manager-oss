@@ -1,3 +1,4 @@
+import os
 import contextlib
 import io
 import json
@@ -227,6 +228,8 @@ class ParameterExecutionTests(unittest.TestCase):
         self.assertEqual(packages.archive(package["id"], "sample"), original)
 
     def test_remote_defaults_use_common_contract_and_fail_without_required_inputs(self):
+        if os.name != "posix":
+            self.skipTest("POSIX remote run_locked contract; local parameter execution is tested separately")
         from types import SimpleNamespace
         from deployments.remote_runtime import run_locked
         base = Path(self.temp.name) / "remote"

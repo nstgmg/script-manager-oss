@@ -13,6 +13,7 @@ from runner.common import ManagerError, now, write_json
 from runner.execution import Execution
 from runner.lifecycle import Lifecycle
 from runner.store import Store, default_job, dump_yaml
+from tests.platform_helpers import symlink_or_skip
 
 
 class LifecycleTests(unittest.TestCase):
@@ -91,7 +92,7 @@ class LifecycleTests(unittest.TestCase):
         self.assertTrue(state.exists()); self.assertTrue(workspace.exists())
         self.assertTrue(self.life.outputs('sample'))
 
-    def test_locks_symlinks_invalid_policies_and_failed_rename(self):
+    def test_locks_invalid_policies_and_failed_rename(self):
         run = self.output(1)
         self.life.save('sample', {'output_runs': 0})
         with self.store.job_lock('sample', 'run'):
@@ -103,17 +104,20 @@ class LifecycleTests(unittest.TestCase):
         self.assertFalse(self.life.outputs('sample')[0]['trashed'])
         with self.assertRaises(ManagerError):
             self.life.cleanup('sample', 'output', [])
-        output = Path(self.life.paths('sample', run)['SCRIPT_MANAGER_OUTPUT_DIR'])
-        (output/'escape').symlink_to(self.store.root)
-        with self.assertRaises(ManagerError):
-            self.life.cleanup('sample', 'output')
-        (output/'escape').unlink()
         for policy in ({'package_keep': True}, {'output_days': -1}, {'pins': ['../escape']}, {'state_auto': True}):
             with self.assertRaises(ManagerError):
                 self.life.save('sample', policy)
         for bad in ('../escape', None, '/tmp'):
             with self.assertRaises(ManagerError):
                 self.life.restore('sample', bad)
+
+    def test_output_symlink_rejected(self):
+        run = self.output(1)
+        self.life.save('sample', {'output_runs': 0})
+        output = Path(self.life.paths('sample', run)['SCRIPT_MANAGER_OUTPUT_DIR'])
+        symlink_or_skip(self, output / 'escape', self.store.root, directory=True)
+        with self.assertRaises(ManagerError):
+            self.life.cleanup('sample', 'output')
 
     def test_package_unlink_failure_and_automatic(self):
         pid = self.packages.create('sample')['id']
@@ -185,12 +189,14 @@ class LifecycleTests(unittest.TestCase):
         self.assertIn('unconfirmed',rows[pids[3]]['protection'])
         self.assertEqual(self.life.cleanup('sample','packages')['completed'],[pids[1]])
 
-    def test_workspace_excluded_and_ancestor_symlinks_rejected(self):
+    def test_workspace_excluded(self):
         folder=self.store.job_dir('sample')/'workspace'
         folder.mkdir(); (folder/'agent.txt').write_text('local workspace')
         package=self.packages.create('sample')
         self.assertNotIn('workspace/agent.txt',self.packages.get(package['id'],'sample')['manifest']['files'])
+
+    def test_ancestor_symlink_rejected(self):
         root=self.store.root/'runtime/job-data'
-        root.symlink_to(self.store.jobs,target_is_directory=True)
+        symlink_or_skip(self, root, self.store.jobs, directory=True)
         with self.assertRaises(ManagerError):
             self.life.paths('sample','0'*32,True)

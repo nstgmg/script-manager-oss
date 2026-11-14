@@ -5,6 +5,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 from runner.common import ManagerError
 from runner.store import Store, default_job, dump_yaml, load_yaml, validate
+from tests.platform_helpers import symlink_or_skip
 
 
 class StoreTests(unittest.TestCase):
@@ -49,10 +50,12 @@ class StoreTests(unittest.TestCase):
             with self.assertRaises(ManagerError):
                 validate(config)
 
-    def test_symlink_and_id_mismatch(self):
-        (self.store.jobs / "alias").symlink_to(self.store.jobs / "sample")
+    def test_symlink_rejected(self):
+        symlink_or_skip(self, self.store.jobs / "alias", self.store.jobs / "sample", directory=True)
         with self.assertRaises(ManagerError):
             self.store.get("alias")
+
+    def test_id_mismatch_rejected(self):
         p = self.store.jobs / "other"
         p.mkdir()
         (p / "job.yaml").write_text(self.job["yaml"])

@@ -10,6 +10,7 @@ import zipfile
 from deployments.packages import Packages
 from runner.common import ManagerError
 from runner.store import Store, default_job, dump_yaml
+from tests.platform_helpers import symlink_or_skip
 
 
 class PackageTests(unittest.TestCase):
@@ -64,11 +65,14 @@ class PackageTests(unittest.TestCase):
                 self.assertNotIn("source/" + name, names)
             self.assertIn("env_file", archive.read("RUNME.md").decode())
 
-    def test_rejects_symlink_inline_env_and_corrupt_archive(self):
-        (self.folder / "escape").symlink_to("/etc/passwd")
+    def test_rejects_symlink(self):
+        target = Path(self.temp.name) / "outside.txt"
+        target.write_text("outside")
+        symlink_or_skip(self, self.folder / "escape", target)
         with self.assertRaises(ManagerError):
             self.packages.create("sample")
-        (self.folder / "escape").unlink()
+
+    def test_rejects_inline_env_and_corrupt_archive(self):
         item = self.store.get("sample")
         config = item["config"]
         config["env"] = {"TOKEN": "value"}

@@ -21,6 +21,8 @@ from runner.schedule import Scheduler
 from runner.schedule_doctor import ScheduleDoctor
 from runner.store import Store, default_job
 from tests.test_schedule import LaunchctlFake
+from tests.platform_helpers import symlink_or_skip
+from tests.platform_helpers import mock_launchd
 
 
 class DoctorLaunchctl(LaunchctlFake):
@@ -55,14 +57,12 @@ class DoctorLaunchctl(LaunchctlFake):
 
 class MaintenanceTests(unittest.TestCase):
     def setUp(self):
+        mock_launchd(self)
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.base = Path(self.temp.name).resolve()
         self.store = Store(self.base / "one")
         self.fake = DoctorLaunchctl()
-        patcher = patch("runner.schedule.platform.system", return_value="Darwin")
-        patcher.start()
-        self.addCleanup(patcher.stop)
         self.scheduler = Scheduler(self.store, self.base / "agents", self.fake)
         self.doctor = ScheduleDoctor(self.store, self.scheduler)
         self.manager = Maintenance(self.store, self.doctor)
@@ -197,14 +197,16 @@ class MaintenanceTests(unittest.TestCase):
             self.manager.execute("reset", plan["plan_hash"])
         self.assertTrue(self.fake.services)
 
-    def test_inventory_error_running_guard_and_symlink_preserve_data(self):
+    def test_inventory_error_and_running_guard_preserve_data(self):
         self.fake.fail_list = True
         self.assertTrue(self.manager.preview()["blockers"])
         self.fake.fail_list = False
         with self.store.job_lock("sample", "run", False):
             self.assertTrue(self.manager.preview()["active_runs"])
+
+    def test_workspace_symlink_preserves_data(self):
         marker = self.store.root / "workspace"
-        marker.symlink_to(self.base / "outside", target_is_directory=True)
+        symlink_or_skip(self, marker, self.base / "outside", directory=True)
         self.assertTrue(self.manager.preview()["blockers"])
         self.assertTrue(marker.is_symlink())
 

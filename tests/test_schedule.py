@@ -1,12 +1,14 @@
 from pathlib import Path
 import plistlib
 import subprocess
+import sys
 import tempfile
 import unittest
 from unittest.mock import patch
 from runner.common import ManagerError
 from runner.schedule import Scheduler
 from runner.store import Store, default_job, dump_yaml
+from tests.platform_helpers import mock_launchd
 
 
 class LaunchctlFake:
@@ -57,6 +59,7 @@ class LaunchctlFake:
 
 class ScheduleTests(unittest.TestCase):
     def setUp(self):
+        mock_launchd(self)
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.store = Store(self.temp.name)
@@ -66,9 +69,6 @@ class ScheduleTests(unittest.TestCase):
         self.job = self.store.create(config)
         self.fake = LaunchctlFake()
         self.scheduler = Scheduler(self.store, Path(self.temp.name) / "agents", self.fake)
-        patcher = patch("runner.schedule.platform.system", return_value="Darwin")
-        patcher.start()
-        self.addCleanup(patcher.stop)
 
     def test_calendar_mapping_and_apply_remove(self):
         plan = self.scheduler.plan("sample")
@@ -128,7 +128,7 @@ class ScheduleTests(unittest.TestCase):
         self.assertFalse(path.exists())
         self.assertEqual(self.store.get("sample")["config"]["schedule"], previous_schedule)
 
-    def test_interval_conversion_and_native_plist_validation(self):
+    def test_interval_conversion(self):
         for unit, expected in (("minutes", 120), ("hours", 7200), ("days", 172800)):
             current = self.store.get("sample")
             self.store.update_schedule("sample", {"enabled": True, "mode": "interval",
@@ -137,9 +137,6 @@ class ScheduleTests(unittest.TestCase):
             plist = plistlib.loads(plan["plist"].encode())
             self.assertEqual(plist["StartInterval"], expected)
             self.assertNotIn("StartCalendarInterval", plist)
-            path = Path(self.temp.name) / "test.plist"
-            path.write_text(plan["plist"])
-            self.assertEqual(subprocess.run(["plutil", "-lint", str(path)], capture_output=True).returncode, 0)
 
     def test_conflict_running_guard_and_external_plist_edit(self):
         with self.assertRaises(ManagerError):
@@ -155,11 +152,18 @@ class ScheduleTests(unittest.TestCase):
         self.assertEqual(path.read_text(), "external")
         self.assertFalse(any(call[:2] == ["launchctl", "kickstart"] for call in self.fake.calls))
 
+    @unittest.skipUnless(sys.platform == "darwin", "Native plutil lint requires macOS; plist mapping runs on all hosts")
     def test_native_plist_validation_without_registration(self):
-        path = Path(self.temp.name) / "test.plist"
-        path.write_text(self.scheduler.plan("sample")["plist"])
-        result = subprocess.run(["plutil", "-lint", str(path)], capture_output=True)
-        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        for unit in (None, "minutes", "hours", "days"):
+            with self.subTest(unit=unit):
+                if unit:
+                    current = self.store.get("sample")
+                    self.store.update_schedule("sample", {"enabled": True, "mode": "interval",
+                        "interval": {"value": 2, "unit": unit}}, current["etag"])
+                path = Path(self.temp.name) / "test.plist"
+                path.write_text(self.scheduler.plan("sample")["plist"])
+                result = subprocess.run(["plutil", "-lint", str(path)], capture_output=True)
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
     def test_schedule_editor_preserves_other_settings_and_comments(self):
         initial = self.store.update("sample", "# original comment\n" + self.job["yaml"], self.job["etag"])
