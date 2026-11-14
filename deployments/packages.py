@@ -7,11 +7,11 @@ import platform
 import re
 import shutil
 import stat
-import tempfile
 import uuid
 import zipfile
 
-from runner.common import ManagerError, contained, digest, identifier, now, read_json, write_json
+from runner.common import (ManagerError, contained, digest, identifier, now, private_mkdir,
+                           private_temporary_directory, read_json, write_json)
 from runner.execution import snapshot, source_files
 
 
@@ -46,7 +46,7 @@ class Packages:
     def __init__(self, store):
         self.store = store
         self.root = contained(store.root, "deployments/packages")
-        self.root.mkdir(parents=True, exist_ok=True, mode=0o700)
+        private_mkdir(self.root, parents=True, exist_ok=True)
 
     def _directory(self, package_id):
         return contained(self.root, identifier(package_id), True)
@@ -92,7 +92,7 @@ class Packages:
                 raise ManagerError("Package에 인라인 환경 변수 값을 포함할 수 없습니다. env_file로 옮긴 뒤 다시 생성하세요.")
             package_id = "p-" + uuid.uuid4().hex
             created_at = now()
-            with tempfile.TemporaryDirectory(dir=self.store.runtime / "deployments") as temporary:
+            with private_temporary_directory(self.store.runtime / "deployments") as temporary:
                 source = Path(temporary) / "source"
                 source_manifest = snapshot(self.store.job_dir(job_id), source, item["config"].get("env_file"), excluded)
                 if source_manifest.get("job.yaml", {}).get("sha256") != item["etag"]:
@@ -123,7 +123,7 @@ class Packages:
                             "content_hash": manifest["content_hash"], "zip_sha256": digest(archive.read_bytes()),
                             "requirements": manifest["requirements"], "file_count": len(files)}
                 destination = contained(self.root, package_id)
-                destination.mkdir(mode=0o700)
+                private_mkdir(destination)
                 try:
                     shutil.copyfile(archive, destination / "package.zip")
                     write_json(destination / "metadata.json", metadata)

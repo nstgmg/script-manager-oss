@@ -11,7 +11,7 @@ from collections.abc import Mapping
 from datetime import datetime, timezone
 
 from ruamel.yaml import YAML
-from runner.common import ManagerError, atomic_write, contained, digest, identifier, lock, now, read_json, write_json
+from runner.common import ManagerError, atomic_write, contained, digest, identifier, lock, now, private_mkdir, read_json, write_json
 
 INTERVAL_SECONDS = {"minutes": 60, "hours": 3600, "days": 86400}
 MAX_INTERVAL_SECONDS = 2147483647
@@ -251,9 +251,9 @@ class Store:
         self.jobs = contained(self.root, "jobs")
         self.runtime = contained(self.root, "runtime")
         self.jobs.mkdir(parents=True, exist_ok=True)
-        self.runtime.mkdir(parents=True, exist_ok=True, mode=0o700)
+        private_mkdir(self.runtime, parents=True, exist_ok=True)
         for part in ("locks", "runs", "trash", "schedules", "deployments"):
-            contained(self.runtime, part).mkdir(exist_ok=True, mode=0o700)
+            private_mkdir(contained(self.runtime, part), exist_ok=True)
 
     def job_dir(self, job_id):
         return contained(self.jobs, identifier(job_id), True)
@@ -329,7 +329,7 @@ class Store:
             if dest.exists():
                 raise ManagerError("동일한 Job ID가 이미 존재합니다.", 409)
             temp = self.jobs / (".create-" + uuid.uuid4().hex)
-            temp.mkdir(mode=0o700)
+            private_mkdir(temp)
             try:
                 atomic_write(temp / "job.yaml", text)
                 atomic_write(temp / "main.py", 'print("Script Manager sample job completed")\n')

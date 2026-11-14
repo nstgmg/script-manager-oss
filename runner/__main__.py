@@ -120,11 +120,12 @@ def main(argv=None):
         if name == "rollback":
             sub.add_argument("--release", required=True)
     args = parser.parse_args(argv)
-    store = Store(args.root)
-    execution = Execution(store)
-    scheduler = Scheduler(store)
     action = args.action
+    store = None
     try:
+        store = Store(args.root)
+        execution = Execution(store)
+        scheduler = Scheduler(store)
         startup_notice = None
         if action not in ("_worker", "_scheduled", "schedule-doctor", "reset", "uninstall"):
             from runner.schedule_doctor import ScheduleDoctor
@@ -266,7 +267,7 @@ def main(argv=None):
             return 1
         return 1 if isinstance(result, dict) and result.get("state") in ("failed", "timed_out", "cancelled", "interrupted") else 0
     except (ManagerError, OSError, ValueError) as exc:
-        if action == "_scheduled":
+        if action == "_scheduled" and store is not None:
             write_json(store.runtime / "schedules" / (args.job + ("." + args.schedule_id if args.schedule_id else "") + ".last.json"), {"error": str(exc)})
         else:
             print(json.dumps({"error": str(exc)}, ensure_ascii=False), file=sys.stderr)

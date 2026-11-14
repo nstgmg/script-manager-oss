@@ -9,8 +9,10 @@ import hashlib
 import json
 from pathlib import Path
 import re
+import shutil
 import tempfile
 import time
+import uuid
 from datetime import datetime, timezone
 
 
@@ -18,6 +20,39 @@ class ManagerError(Exception):
     def __init__(self, message, status=400):
         super().__init__(message)
         self.status = status
+
+
+def private_mkdir(path, *, parents=False, exist_ok=False):
+    """Create private data dirs; Windows privacy comes from the parent's ACL.
+
+    Python 3.13's Windows 0700 creates a protected DACL tied to the creator,
+    preventing inheritance needed by sandbox and ordinary-user processes.
+    Other modes are ignored on Windows: 0777 requests normal ACL inheritance,
+    NOT an Everyone grant. Never chmod or repair an existing directory here.
+    """
+    path = Path(path)
+    try:
+        path.mkdir(mode=0o777 if os.name == "nt" else 0o700,
+                   parents=parents, exist_ok=exist_ok)
+    except PermissionError as exc:
+        if os.name != "nt":
+            raise
+        raise ManagerError(
+            "디렉터리 접근 거부: " + str(path) +
+            ". 기존 데이터와 ACL은 변경하지 않았습니다. 실행 계정과 부모/기존 디렉터리 ACL을 "
+            "확인하세요. INSTALL.md의 Windows 런타임 ACL 복구 절차를 따르세요.", 403) from exc
+
+
+@contextlib.contextmanager
+def private_temporary_directory(parent):
+    # tempfile.mkdtemp/TemporaryDirectory also use 0700 on Windows Python 3.13.
+    # Exclusive creation keeps an existing path out of this cleanup scope.
+    path = Path(parent) / (".tmp-" + uuid.uuid4().hex)
+    private_mkdir(path)
+    try:
+        yield path
+    finally:
+        shutil.rmtree(path)
 
 
 def identifier(value):

@@ -1,5 +1,39 @@
 # Validation records
 
+## Windows runtime ACL compatibility — 2026-11-15
+
+Scope: local directory creation and safe startup error handling only. No existing data/ACL migration, Everyone grant, recursive ACL reset, elevation, real Job submission, active Schedule change, service control, SSH, push or dependency change. Tests use isolated synthetic roots. No `.env` values were read.
+
+### Cause and implementation
+
+The owner reported ordinary-user access denial for runtime directories created with `0700` under Python 3.13.9. The exact Windows environment was not available here. Confirmed from the [tagged CPython 3.13.9 source](https://github.com/python/cpython/blob/v3.13.9/Modules/posixmodule.c#L5284-L5292): Windows `0700` selects a protected DACL with SYSTEM, Administrators and owner entries. This differs from normal inherited ACL creation; different sandbox/ordinary-user identities are a plausible cause, not a locally reproduced token-level diagnosis. The [Python documentation](https://docs.python.org/3.13/library/os.html#os.mkdir) describes the Windows special case and ignored other modes.
+
+`private_mkdir` preserves POSIX `0700` and requests normal Windows inheritance without changing existing ACLs. Callers cover runtime initialization, Job staging, per-Run folders/source snapshots, managed data/Workspace, Package storage and Package scratch space. `tempfile.TemporaryDirectory` also uses `0700`, so Package scratch now uses exclusive UUID directory creation with cleanup limited to that newly created path. Creation failure/collision never enters cleanup for an existing path. Other errors propagate without retries. Windows creation denial reports the path and manual ACL diagnosis, with no repair fallback. CLI initialization now participates in JSON error handling instead of escaping as an unhandled traceback. Existing containment, locks, etags, secret handling and file modes are unchanged; the Linux-only SSH helper retains its `0700` policy.
+
+### Automated coverage and host limits
+
+- `tests.test_runtime_permissions`: new installation across all local data paths; queued Run/snapshot creation without launching a worker; preservation of existing Jobs, schedules, run/output/state/workspace and deployment/package metadata; access denial with no chmod/deletion/retry; partial initialization reuse; non-permission failure propagation; failed Job/Run/Package staging cleanup and retry; temporary-name collision protection; unchanged POSIX directory/atomic-file/Package modes and existing modes. Windows policy selection is simulated on macOS; these are not ACL/access-token measurements.
+- `tests.test_runtime_permissions_native`: Windows/PowerShell-only readback of inherited ACEs and unprotected DACLs for newly created runtime/Job/managed-data/scratch directories, unchanged parent/existing ACLs and preserved State on reopen. It edits no ACLs and creates no native schedules/services. Skipped on this macOS host.
+- Actual host: macOS ARM64, existing venv Python 3.9.6; Python 3.13.9/native Windows unavailable. Code minimum remains 3.9. Native Schedule opt-ins remain unset. Existing offline CLI onboarding test verifies one synthetic Run, succeeded/exit 0, logs, actual Output and saved-result counts; it does not establish Windows support.
+
+| Check | Actual result on this host |
+| --- | --- |
+| New directory-policy regressions | **11 passed** |
+| New native Windows ACL readback | **1 skipped**, Windows/PowerShell unavailable |
+| Full Python suite, `.venv/bin/python -m unittest discover -v` | **301 tests: 294 passed, 7 skipped**, no failures/errors, 43.129s |
+| Node UI, `node --test tests/test_dashboard_ui.cjs` | **71 passed**, no failures/skips |
+| Whitespace review | `git diff --check` passed |
+
+The seven full-suite skips are the new native ACL test, the existing native PowerShell parser, Windows Task Scheduler integration, three opt-in launchd cases and one opt-in native maintenance case. The initial restricted **targeted** run had two errors because existing Store/Lifecycle deletion tests could not enumerate OS schedules. The subsequent approved full run passed, including those cases and existing offline Chrome/HTTP tests, without changing code to bypass restrictions. Temporary fixture servers were closed by their tests; no resident Dashboard was started or controlled. Local ignored logs: `.cache/windows-runtime-acl-python.txt` and `.cache/windows-runtime-acl-node.txt`.
+
+### Required native Windows verification (not completed here)
+
+1. On Windows/NTFS with **Python 3.13.9**, run `.venv\Scripts\python.exe -m unittest tests.test_runtime_permissions tests.test_runtime_permissions_native tests.test_installation_example -v` in an isolated, private test root. Record Python/OS/agent versions, absolute roots, native ACL-test pass/skip, and actual inherited ACEs. Repeat on the maintained Python used for production. A passing macOS mode simulation or earlier external Python 3.14.3 report is not this evidence.
+2. Use both the real Codex sandbox and ordinary unelevated user terminal against the **same** isolated data root. Check inherited ACLs and required read/create/rename/delete operations only on synthetic test files; complete one offline hello-output Run and read its logs/results from the other context. Confirm no added Everyone/broad-users grant and no change to parent ACLs. This tests two execution contexts, not just two processes with the same token.
+3. Test an accessible existing installation and a preserved fixture created with the old `0700` policy. Compare owner, inheritance, ACEs and data before/after reopening; accessible data must remain readable and unchanged, while denied access must fail without resetting ACLs, recreating data, starting a worker or resubmitting a Run. A fixture whose old ACL happens to permit the current token does not prove the denial case.
+4. In a separately prepared denied-access fixture, verify runtime/subdirectory/Output/State/Package failure diagnostics from each context. The operator, not the application/test, prepares and later restores that fixture's permissions under an explicitly reviewed minimum-access plan. After external access restoration, reopen the same root and inspect saved history; do not silently switch roots or repeat Job submissions.
+5. Inject disk/write/copy failure during initialization, Job/Run/Package staging and retry in the same fixture. Verify existing ACLs/data/history unchanged, newly owned temporary paths cleaned, partial directories reusable, and no owner takeover, elevation, ACL-reset or orphan worker. Actual denied deletion/Windows file-lock behavior remains to be checked; injected macOS exceptions do not establish NTFS recovery behavior. Dashboard, Task Scheduler and SSH are separate validation scopes and are not exercised by these ACL tests.
+
 ## Windows installation hardening after `0027dc7`
 
 Scope: checkout-local runtime preparation and agent onboarding, with no push, deployment, real OS Schedule activation or resident Dashboard startup. The code minimum remains Python 3.9. Existing operational Jobs, Schedules, Output, State, Workspace, secrets and deployment history were not changed. Runtime/dependency definitions and the existing execution/scheduling implementations are unchanged.

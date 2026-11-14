@@ -13,7 +13,7 @@ import time
 import threading
 import uuid
 
-from runner.common import ManagerError, contained, digest, identifier, now, read_json, write_json
+from runner.common import ManagerError, contained, digest, identifier, now, private_mkdir, read_json, write_json
 
 EXCLUDED = {".git", ".venv", "venv", "node_modules", "__pycache__", ".DS_Store"}
 LOG_LIMIT = 5 * 1024 * 1024
@@ -50,7 +50,7 @@ def source_files(folder, env_file=None, exclude=None):
 
 def snapshot(folder, dest, env_file=None, exclude=None):
     before = source_files(folder, env_file, exclude)
-    dest.mkdir(parents=True, mode=0o700)
+    private_mkdir(dest, parents=True)
     for rel in before:
         target = dest / rel
         target.parent.mkdir(parents=True, exist_ok=True)
@@ -311,7 +311,7 @@ class Execution:
                 directory = contained(self.store.runtime / "runs", job_id)
                 directory.mkdir(exist_ok=True)
                 directory = directory / run_id
-                directory.mkdir(mode=0o700)
+                private_mkdir(directory)
                 try:
                     manifest = snapshot(self.store.job_dir(job_id), directory / "source", config.get("env_file"))
                     if manifest.get("job.yaml", {}).get("sha256") != item["etag"]:

@@ -5,7 +5,7 @@ from pathlib import Path
 import re
 import stat
 
-from runner.common import ManagerError, contained, identifier, read_json, write_json
+from runner.common import ManagerError, contained, identifier, private_mkdir, read_json, write_json
 
 DEFAULT_POLICY = {"package_keep": 5, "package_auto": False, "output_days": None,
                   "output_runs": None, "output_auto": False, "pins": [], "rollback_packages": []}
@@ -79,7 +79,7 @@ class Lifecycle:
         if create:
             for key, value in result.items():
                 if key.endswith(("DIR", "ROOT")):
-                    value.mkdir(parents=True, exist_ok=True, mode=0o700)
+                    private_mkdir(value, parents=True, exist_ok=True)
         return {key: str(value) for key, value in result.items()}
 
     @staticmethod

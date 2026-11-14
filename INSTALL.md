@@ -263,7 +263,7 @@ run-dashboard는 기존 서버의 실행 클라이언트이고 시작 명령이 
 | PowerShell 5.1: 인덱스가 배열 범위를 벗어남 | 아래 진단 절차로 PowerShell/PSReadLine 예외인지 pip Python traceback인지 구분. 같은 checkout/venv 유지; 전체 설치·Run 재실행 금지 |
 | clib wheel 없음 / 컴파일 오류 | Python·CPU·pip 지원 확인. 새 venv에서 pip 업데이트 후 의존성 설치 재시도. 빌드 도구/OS 변경은 승인 필요 |
 | No module named runner / ruamel | 코드 루트와 방금 만든 .venv Python인지 확인. --root는 import 경로 설정이 아님 |
-| PermissionError / symlink 거부 | 사용자 소유의 일반 디렉터리 사용. 심볼릭 링크·공유 권한을 우회하지 않음 |
+| PermissionError / symlink 거부 | 사용자 소유의 일반 디렉터리 사용. 심볼릭 링크·공유 권한을 우회하지 않음. Windows runtime 접근 거부는 [ACL 복구 절차](#windows-런타임-acl-복구) 확인 |
 | Job ID 충돌 | 기존 Job 보존. 새 설치 경로에서 진행하거나 사용자에게 충돌 보고 |
 | 예제가 기본 문구만 출력 / 결과 없음 | create 다음의 예제 파일 복사 누락 확인. 이미 제출한 Run을 먼저 관찰하고 추가 실행은 별도 요청 |
 | Job 실행 파일/라이브러리 없음 | manager venv와 Job 의존성은 별도. POSIX python3는 PATH 해석이며 argv는 shell 아님. 필요 시 지원 etag update로 명시적 인터프리터 설정 |
@@ -271,6 +271,18 @@ run-dashboard는 기존 서버의 실행 클라이언트이고 시작 명령이 
 | Dashboard Host/Origin/CSRF 거부 | 출력된 loopback URL 및 기존 보안 절차 사용. 검사를 완화하지 않음 |
 | run 실패/관찰 중단 | runs/logs/results에서 같은 ID 재조회. 실패 원인을 확인하고 자동 재제출하지 않음 |
 | 결과 없음/오래됨 | 수집 시각·Run·경로·경고 보고. 조회 요청만으로 재실행하지 않음 |
+
+### Windows 런타임 ACL 복구
+
+Python 3.13부터 Windows의 `mkdir(mode=0o700)`은 부모 권한을 상속하지 않는 보호 DACL을 생성합니다. [CPython 3.13.9 구현](https://github.com/python/cpython/blob/v3.13.9/Modules/posixmodule.c#L5284-L5292)은 SYSTEM·Administrators·owner에 접근을 허용하며, [공식 mkdir 설명](https://docs.python.org/3.13/library/os.html#os.mkdir)도 Windows의 특별 처리를 설명합니다. Codex sandbox와 일반 사용자 프로세스가 서로 다른 보안 토큰/소유자 문맥을 사용하면 접근에 차이가 생길 수 있습니다. 이 저장소에서 해당 두 문맥의 실제 재현은 아직 하지 않았습니다.
+
+로컬 runtime과 하위 데이터·Job 생성 임시 폴더·스냅샷·Output/State/Workspace·Package 저장/임시 폴더는 이제 Windows에서 부모 ACL을 정상 상속해 생성합니다. Windows에 전달하는 `0777`은 ACL 부여 값이 아니며 Python이 해당 숫자 모드를 무시합니다. Everyone 권한을 추가하지 않습니다. POSIX의 `0700`, 파일 원자 저장 권한과 `.env` 검사, Linux 전용 원격 helper의 권한은 그대로입니다. `--root`로 별도 데이터를 쓰는 설치에도 같은 정책이 적용됩니다.
+
+1. **신규 설치:** 사용자 소유의 비공유 일반 폴더를 사용합니다. 부모 ACL이 일반 사용자 계정과 필요한 sandbox 계정, 시스템/관리 주체에 한정되어 있고 자식 폴더·파일로 상속되는지 확인합니다. 사용자 프로필 아래라는 경로명만으로 안전하다고 가정하지 않습니다. 넓게 공유된 ACL을 상속하면 이 코드가 비공개 권한으로 좁혀 주지 않습니다. 필요한 작업에만 접근을 허용하고 Everyone/Users 전체에 새 권한을 주지 않습니다.
+2. **기존 설치:** 코드 업데이트는 기존 ACL을 변경하거나 이미 막힌 디렉터리를 복구하지 않습니다. 접근 가능한 설치는 그대로 재사용합니다. 접근 거부가 발생하면 실행 계정·Python 버전·절대 코드/데이터 루트와 거부 경로를 기록하고 중단합니다. 같은 Run을 재제출하거나 runtime·venv·Job을 지우고 재설치하지 않습니다.
+3. **읽기 전용 진단:** 일반 사용자 터미널과 sandbox에서 각각 `whoami /user`와 거부 경로 및 부모에 대한 `Get-Acl -LiteralPath 'C:\actual data root\runtime' | Format-List Owner,AreAccessRulesProtected,AccessToString`을 비교합니다. 경로는 실제 값으로 바꾸고 비밀 파일은 열지 않습니다. ACL 자체도 읽을 수 없다면 그 제한을 보고하며 우회·관리자 실행으로 재시도하지 않습니다. ACL 출력의 계정 식별자는 공개 보고에 그대로 게시하지 않습니다.
+4. **데이터 보존과 복구:** 읽을 수 있는 원래 계정으로 Jobs·Schedules·Output·State·Workspace·Package와 배포 이력의 보존/백업을 먼저 검토합니다. 실행 중인 Job/서비스와 OS 예약은 건드리지 않습니다. 기존 ACL의 강제 변경, `icacls /reset`·재귀 권한 부여·소유권 탈취·Everyone 추가는 이 수정의 복구 방법이 아닙니다. 접근이 막힌 데이터의 복구는 소유자/관리 담당자가 필요한 계정과 최소 접근 범위를 검토해 별도로 승인한 절차로만 진행합니다. 자동 이전이나 새 루트로의 묵시적 전환도 하지 않습니다.
+5. **접근 복구 후:** 같은 데이터 루트에서 `list`, 필요한 `get/runs/results`로 원래 기록을 확인합니다. 부분 초기화라면 다음 CLI 호출이 이미 생성된 디렉터리를 재사용합니다. 생성 실패 시에는 이번 작업이 소유한 새 임시 경로만 정리하고 기존 데이터는 보존합니다. 실제 Windows에서의 상속/계정 간 접근·거부·복구 검증 항목은 [검증 기록](docs/validation.md#windows-runtime-acl-compatibility--2026-11-15)을 따릅니다. 기존 Run 확인이나 ACL 점검은 새로운 Job 실행을 승인하지 않습니다.
 
 ### PowerShell 5.1 배열 인덱스 오류 진단
 
