@@ -1,5 +1,6 @@
 """Regression cases found in the final maintenance safety audit."""
 import unittest
+from contextlib import ExitStack
 from pathlib import Path
 import json
 import os
@@ -105,14 +106,9 @@ class MoreDataAuditTests(unittest.TestCase):
         self.assert_partial_file_deletion()
 
     def test_audit_partial_file_deletion_with_windows_path_calls(self):
-        class WindowsPathCalls:
-            name = 'nt'
-            def __getattr__(self, name):
-                return getattr(os, name)
-        # Exercise the real path-based deletion branch on POSIX as well. This
-        # is not a native Windows ACL/reparse-point or filesystem-race test.
-        with patch('runner.maintenance.os', WindowsPathCalls()):
-            self.assert_partial_file_deletion()
+        # Native Windows now uses handle deletion. Portable runs exercise their
+        # actual backend; pretending POSIX has NtCreateFile is not a native test.
+        self.assert_partial_file_deletion()
 
     def assert_partial_file_deletion(self):
         target = self.store.job_dir('sample') / 'unapproved.txt'
@@ -135,7 +131,17 @@ class MoreDataAuditTests(unittest.TestCase):
             # os.unlink directly. Intercept both supported call shapes.
             deny_main(path)
             return original_path_unlink(path, *args, **kwargs)
-        with patch('os.unlink', side_effect=unlink), patch.object(Path, 'unlink', path_unlink):
+        with ExitStack() as injections:
+            injections.enter_context(patch('os.unlink', side_effect=unlink))
+            injections.enter_context(patch.object(Path, 'unlink', path_unlink))
+            if os.name == 'nt':
+                from runner import windows_fs
+                native_delete = windows_fs.delete_entry
+                def handle_delete(root, relative, record, anchors):
+                    # Same pre-I/O failure, before opening the approved handle.
+                    deny_main(relative)
+                    return native_delete(root, relative, record, anchors)
+                injections.enter_context(patch.object(windows_fs, 'delete_entry', handle_delete))
             result = self.manager.execute('reset', plan['plan_hash'])
         self.assertTrue(failed[0], 'partial-deletion injection was not reached')
         self.assertFalse(result['success'])

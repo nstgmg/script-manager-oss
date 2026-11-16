@@ -9,6 +9,7 @@ from datetime import datetime, time, timedelta, timezone
 from functools import lru_cache
 import io
 import json
+import os
 from pathlib import Path, PurePosixPath, PureWindowsPath
 import re
 import stat
@@ -176,7 +177,12 @@ class Results:
                         raise ManagerError('실행 메타데이터는 링크·reparse point가 아닌 일반 파일이어야 합니다.')
                     if info.st_size > 2 * 1024 * 1024:
                         raise ValueError('실행 메타데이터 크기 초과')
-                    row = read_json(path)
+                    if os.name == 'nt':
+                        from runner.windows_fs import read_beneath
+                        row = json.loads(read_beneath(self.store.runtime,
+                            path.relative_to(self.store.runtime), 2 * 1024 * 1024).decode('utf-8'))
+                    else:
+                        row = read_json(path)
                     if not isinstance(row, dict) or row.get('id') != entry.name or row.get('job_id') != job_id:
                         raise ValueError('실행 메타데이터 식별자 불일치')
                     rows.append(row)

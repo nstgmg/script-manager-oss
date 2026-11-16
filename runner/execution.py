@@ -21,6 +21,8 @@ SOURCE_LIMIT = 100 * 1024 * 1024
 
 
 def source_files(folder, env_file=None, exclude=None):
+    if os.name == "nt":
+        return _windows_source_files(folder, env_file, exclude)
     result = {}
     total = 0
     for base, dirs, files in os.walk(folder, followlinks=False):
@@ -49,6 +51,8 @@ def source_files(folder, env_file=None, exclude=None):
 
 
 def snapshot(folder, dest, env_file=None, exclude=None):
+    if os.name == "nt":
+        return _windows_snapshot(folder, dest, env_file, exclude)
     before = source_files(folder, env_file, exclude)
     private_mkdir(dest, parents=True)
     for rel in before:
@@ -57,6 +61,60 @@ def snapshot(folder, dest, env_file=None, exclude=None):
         shutil.copy2(folder / rel, target, follow_symlinks=False)
     if before != source_files(folder, env_file, exclude) or before != source_files(dest, env_file, exclude):
         raise ManagerError("스냅샷 생성 중 Job 파일이 변경되었습니다. 다시 시도하세요.", 409)
+    return before
+
+
+def _windows_source_files(folder, env_file=None, exclude=None, destination=None):
+    from contextlib import ExitStack
+    from runner.windows_fs import directory, copy_file
+    result, total = {}, 0
+    with ExitStack() as stack:
+        source = stack.enter_context(directory(folder))
+        target = stack.enter_context(directory(destination, create=True)) if destination is not None else None
+
+        def visit(parent, output, prefix):
+            nonlocal total
+            for name in sorted(os.listdir(parent.path)):
+                rel = str(prefix / name)
+                info = (parent.path / name).lstat()
+                if (stat.S_ISLNK(info.st_mode) or getattr(info, "st_file_attributes", 0) & 0x400):
+                    raise ManagerError("Job snapshot reparse point refused: " + rel)
+                is_dir = stat.S_ISDIR(info.st_mode)
+                if is_dir:
+                    if (name in EXCLUDED or name.startswith(".") or (exclude and exclude(rel, True))):
+                        continue
+                    with ExitStack() as children:
+                        child = children.enter_context(parent.child(name, directory=True))
+                        dest = children.enter_context(output.child(name, directory=True, create=True)) if output else None
+                        visit(child, dest, prefix / name)
+                    continue
+                if exclude and exclude(rel, False):
+                    continue
+                if (name.startswith(".env") or name.endswith((".pem", ".key", ".log", ".pyc"))
+                        or rel == env_file or name in EXCLUDED):
+                    continue
+                if len(result) >= 10000:
+                    raise ManagerError("Job snapshot exceeds 10,000 files")
+                with parent.child(name) as leaf:
+                    try:
+                        if output:
+                            with output.child(name, create=True) as copy:
+                                data = copy_file(leaf, copy, SOURCE_LIMIT - total)
+                        else:
+                            data = leaf.read(SOURCE_LIMIT - total)
+                    except ValueError as exc:
+                        raise ManagerError("Job snapshot exceeds 100 MiB") from exc
+                    total += len(data)
+                    result[rel] = {"sha256": digest(data), "mode": stat.S_IMODE(leaf.stat().st_mode)}
+        visit(source, target, Path())
+    return result
+
+
+def _windows_snapshot(folder, dest, env_file, exclude):
+    before = source_files(folder, env_file, exclude)
+    copied = _windows_source_files(folder, env_file, exclude, destination=dest)
+    if before != copied or before != source_files(folder, env_file, exclude) or before != source_files(dest, env_file, exclude):
+        raise ManagerError("Job files changed during snapshot", 409)
     return before
 
 

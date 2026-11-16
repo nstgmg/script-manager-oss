@@ -64,6 +64,12 @@ class Maintenance:
     def _delete_tree(self, path, records, anchors, progress):
         """Delete only approved entries; never recursively consume newly added children."""
         expected = {r[0]: r for r in records}
+        if os.name == "nt":
+            from runner import windows_fs
+            for relative in sorted(expected, key=lambda p: (len(Path(p).parts), p), reverse=True):
+                windows_fs.delete_entry(self.store.root, relative, expected[relative], anchors)
+                progress.append(str(self.store.root / relative))
+            return
         def matches(value, record, directory=False):
             actual = [record[0], value.st_ino, value.st_mode, value.st_size,
                       value.st_mtime_ns, value.st_dev, value.st_ctime_ns]
@@ -94,20 +100,11 @@ class Maintenance:
                                 raise ManagerError("상위 데이터 경로가 교체되었습니다: " + str(walked), 409)
                         value = os.stat(Path(relative).name, dir_fd=parent_fd, follow_symlinks=False)
                     else:
-                        # Windows: reject junctions/reparse points as well as symlinks.
-                        target = contained(self.store.root, relative, True)
-                        for ancestor in [self.store.root, *reversed(target.parent.parents), target.parent]:
-                            if ancestor == self.store.root or self.store.root in ancestor.parents:
-                                key = str(ancestor.relative_to(self.store.root))
-                                if not matches(ancestor.lstat(), anchors[key], True):
-                                    raise ManagerError("상위 데이터 경로가 교체되었습니다.", 409)
-                        value = target.lstat()
+                        raise ManagerError("안전한 삭제 backend가 지원되지 않습니다.", 409)
                     if not matches(value, record, directory):
                         raise ManagerError("승인 이후 데이터 변경 감지: " + relative, 409)
                     if posix:
                         (os.rmdir if directory else os.unlink)(Path(relative).name, dir_fd=parent_fd)
-                    else:
-                        (target.rmdir if directory else target.unlink)()
                     progress.append(str(self.store.root / relative))
 
     def _job_ids(self):
