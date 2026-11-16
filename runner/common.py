@@ -96,9 +96,8 @@ def lock(path, blocking=True):
     fd = os.open(str(path), os.O_CREAT | os.O_RDWR | getattr(os, "O_NOFOLLOW", 0), 0o600)
     try:
         if os.name == "nt":
-            os.lseek(fd, 0, os.SEEK_SET)
-            if os.fstat(fd).st_size == 0:
-                os.write(fd, b"\0")
+            # Windows byte-range locks may extend beyond EOF. Initializing an
+            # empty file would also write through any hardlink to this inode.
             while True:
                 try:
                     os.lseek(fd, 0, os.SEEK_SET)
