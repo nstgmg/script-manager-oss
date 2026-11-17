@@ -29,6 +29,11 @@ class Maintenance:
 
     def _inventory(self, path):
         """Stat only: never read .env or other user content for a deletion preview."""
+        if os.name == "nt":
+            from runner.windows_fs import inventory
+            records = inventory(self.store.root, path)
+            self._check_mounts(path)
+            return records
         records = []
         device = self.store.root.stat().st_dev
         def inspect(entry):
@@ -52,6 +57,10 @@ class Maintenance:
                 dirs.sort()
                 for name in sorted(dirs + files):
                     inspect(Path(base) / name)
+        self._check_mounts(path)
+        return records
+
+    def _check_mounts(self, path):
         if sys.platform == "linux":
             # ismount() alone misses same-device bind mounts.
             mounts = Path("/proc/self/mountinfo").read_text().splitlines()
@@ -59,13 +68,15 @@ class Maintenance:
                 mounted = Path(re.sub(r"\\([0-7]{3})", lambda m: chr(int(m[1], 8)), line.split()[4]))
                 if mounted == path or path in mounted.parents:
                     raise ManagerError("마운트된 데이터 경로를 보존합니다: " + str(mounted), 409)
-        return records
 
     def _delete_tree(self, path, records, anchors, progress):
         """Delete only approved entries; never recursively consume newly added children."""
         expected = {r[0]: r for r in records}
         if os.name == "nt":
             from runner import windows_fs
+            # Validate the complete schema before any entry can be removed.
+            for record in records:
+                windows_fs.validate_approval(record)
             for relative in sorted(expected, key=lambda p: (len(Path(p).parts), p), reverse=True):
                 windows_fs.delete_entry(self.store.root, relative, expected[relative], anchors)
                 progress.append(str(self.store.root / relative))
@@ -174,9 +185,17 @@ class Maintenance:
                       "preserve": ["프로그램 코드·.git·.venv·예제·문서", "설치 ID·안정된 잠금 파일",
                                    "외부/사용자 지정 보고서 경로·미등록 루트 파일", "다른 설치본과 원격 서버·SSH 키"],
                       "warning": ".env 자격증명, Job 소스, Output/State/Workspace, 휴지통, Package 및 배포 이력은 영구 삭제됩니다. 복구할 수 없습니다."}
-            result["plan_hash"] = fingerprint({"mode": mode, "identity": identity, "inventory": inventory,
-                                               "root_identity": [self.store.root.stat().st_dev, self.store.root.stat().st_ino],
-                                               "schedules": current, "blockers": blockers})
+            plan_identity = {"mode": mode, "identity": identity, "inventory": inventory,
+                                               "root_identity": ([self.store.root.stat().st_dev, self.store.root.stat().st_ino]
+                                                                 if os.name != "nt" else None),
+                                               "schedules": current, "blockers": blockers}
+            if os.name == "nt":
+                from runner.windows_fs import APPROVAL_SCHEMA, anchor_record
+                root_record = anchor_record(self.store.root, self.store.root)
+                result["windows_approval_schema"] = APPROVAL_SCHEMA
+                plan_identity["windows_approval_schema"] = APPROVAL_SCHEMA
+                plan_identity["root_identity"] = [root_record[5], root_record[1]]
+            result["plan_hash"] = fingerprint(plan_identity)
             result["confirmation"] = "미리보기를 검토한 후 --confirm " + result["plan_hash"] + " 로 명시적으로 승인하세요."
             return result
 
@@ -196,6 +215,11 @@ class Maintenance:
             for target in plan["delete"]:
                 for parent in [self.store.root, *Path(target["path"]).parents]:
                     if parent == self.store.root or self.store.root in parent.parents:
+                        if os.name == "nt":
+                            from runner.windows_fs import anchor_record
+                            anchors.setdefault(str(parent.relative_to(self.store.root)),
+                                               anchor_record(self.store.root, parent))
+                            continue
                         value = parent.lstat()
                         anchors.setdefault(str(parent.relative_to(self.store.root)), [str(parent.relative_to(self.store.root)),
                             value.st_ino, value.st_mode, value.st_size, value.st_mtime_ns, value.st_dev, value.st_ctime_ns])

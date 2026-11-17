@@ -158,14 +158,8 @@ class RuntimePermissionTests(unittest.TestCase):
 
     def test_failed_run_snapshot_preserves_old_runs_output_and_state(self):
         store, files = self.seed_existing_data()
-        original = Path.mkdir
-
-        def fail(path, *args, **kwargs):
-            if path.name == "source":
-                raise PermissionError(errno.EACCES, "synthetic denied", str(path))
-            return original(path, *args, **kwargs)
-
-        with windows_directory_policy(), patch.object(Path, "mkdir", fail), \
+        with windows_directory_policy(), \
+                patch("runner.execution.snapshot", side_effect=common.ManagerError("synthetic denied", 403)), \
                 patch("runner.execution.subprocess.Popen") as launch:
             with self.assertRaises(common.ManagerError):
                 Execution(store).start("existing")
