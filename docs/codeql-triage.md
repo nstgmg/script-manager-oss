@@ -1,5 +1,12 @@
 # CodeQL follow-up and alert handling
 
+The [individual #169/#170 review — 2026-11-18](codeql-critical-169-170.md)
+records all displayed Source-to-Sink alternatives, actual platform dispatch,
+input/argv/XML boundaries, executable-search assumptions and focused regression
+evidence for the v0.1.1 Critical follow-up. Its per-alert disposition scope is
+separate from the historical counts and decisions preserved below; it does not
+reclassify unrelated findings or change analysis settings.
+
 Review date: 2026-11-13 (Asia/Seoul). Baseline: public repository `nstgmg/script-manager-oss`, commit `9040b78`. The 155 baseline alerts were 151 `py/path-injection` (High), two `py/command-line-injection` (Critical), one `js/xss-through-dom` (High) and one `py/polynomial-redos` (High).
 
 ## Classification and scope
