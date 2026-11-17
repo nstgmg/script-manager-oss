@@ -1,5 +1,23 @@
 # Validation records
 
+## Windows T1–T4 verification — user-reported results
+
+The following records the supplied Windows verification results; their scopes
+are distinct and do not imply broader platform or full-suite validation.
+
+| Check | Result and scope |
+| --- | --- |
+| T1 Job detail UI | **Fixture PASS**; Job detail UI fixture verification |
+| T2 management UI | **Fixture PASS**; management UI fixture verification |
+| T3 offline report | **Product functionality PASS**; offline report verification |
+| T4 external-path report and CSV | **PASS**; verified with actual files |
+
+T3's initial automated test **FAIL** remains part of the record: its assertion
+did not account for CRLF/LF normalization in the textarea value. No product
+change was needed; the test assertions require correction. Actual OS clipboard
+pasting was **not verified**. The assertion correction does not by itself
+establish a subsequent native Windows automated test pass.
+
 ## Windows regression phase 1 — 2026-11-15
 
 Baseline: `b3e497d` and the owner's attached Windows regression report. Changes

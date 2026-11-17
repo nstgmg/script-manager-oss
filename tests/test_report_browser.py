@@ -71,8 +71,8 @@ class OfflineReportBrowserTests(unittest.TestCase):
   let legacyAttempted=false;
   document.execCommand=()=>{legacyAttempted=true;return false;};
   await copyJSON();
-  assert(legacyAttempted && !el('copy-panel').hidden && el('copy-text').value===originalJSON,'local clipboard fallback');
-  assert(el('copy-text').selectionEnd===originalJSON.length,'manual selection includes full JSON');
+  assert(legacyAttempted && !el('copy-panel').hidden && el('copy-text').value===originalJSON.replace(/\r\n?/g,'\n'),'local clipboard fallback');
+  assert(el('copy-text').selectionEnd===el('copy-text').value.length,'manual selection includes full JSON');
   document.execCommand=()=>true;await copyJSON();assert(el('message').textContent.includes('복사했습니다'),'legacy copy');
   el('copy-close').click();el('copy-manual').click();assert(!el('copy-panel').hidden,'explicit manual copy');
   const savedRows=rows;rows=Array.from({length:205},(_,i)=>({key:String(i),value:{n:i},kind:'fields'}));columns=['n'];page=0;update();
