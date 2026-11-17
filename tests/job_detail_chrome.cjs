@@ -2,7 +2,7 @@
 const {spawn} = require('node:child_process');
 const fs = require('node:fs');
 const {pathToFileURL} = require('node:url');
-const [chrome, fixture, widthText, profile, screenshot, marker = "job-detail-browser-result"] = process.argv.slice(2);
+const [chrome, fixture, widthText, profile, screenshot, marker = "job-detail-browser-result", reducedMotion] = process.argv.slice(2);
 const width = Number(widthText);
 const child = spawn(chrome, ['--headless=new', '--disable-gpu', '--no-first-run',
   '--no-default-browser-check', '--disable-background-networking', '--disable-sync',
@@ -42,8 +42,26 @@ child.on('exit', code=>{
     const {sessionId}=await send('Target.attachToTarget',{targetId,flatten:true});
     await send('Page.enable',{},sessionId);
     await send('Emulation.setDeviceMetricsOverride',{width,height:1100,deviceScaleFactor:1,mobile:false},sessionId);
+    if(reducedMotion)await send('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:reducedMotion}]},sessionId);
     const loaded=new Promise(resolve=>events.set(sessionId+':Page.loadEventFired',resolve));
     await send('Page.navigate',{url:pathToFileURL(fixture).href},sessionId);await loaded;
+    if(marker === 'notification-browser-result'){
+      for(const [stage,keys] of [[1,[['Tab','Tab',9],['Enter','Enter',13]]],[2,[[' ','Space',32]]]]){
+        const ready=await send('Runtime.evaluate',{expression:`(async()=>{
+          for(let i=0;i<200;i++){
+            if(window.notificationKeyboardStage===${stage})return true;
+            await new Promise(resolve=>setTimeout(resolve,25));
+          }
+          throw Error('Notification keyboard stage ${stage} timed out: '+window.notificationKeyboardStage+' '+document.activeElement?.id+' '+document.getElementById('notification-browser-result')?.textContent);
+        })()`,awaitPromise:true,returnByValue:true},sessionId);
+        if(ready.exceptionDetails)throw Error(JSON.stringify(ready.exceptionDetails));
+        for(const [key,code,windowsVirtualKeyCode] of keys){
+          const text=code==='Enter'?'\r':code==='Space'?' ':'';
+          await send('Input.dispatchKeyEvent',{type:'keyDown',key,code,windowsVirtualKeyCode,text},sessionId);
+          await send('Input.dispatchKeyEvent',{type:'keyUp',key,code,windowsVirtualKeyCode},sessionId);
+        }
+      }
+    }
     const result=await send('Runtime.evaluate',{expression:`(async()=>{
       for(let i=0;i<600;i++){
         const result=document.getElementById(${JSON.stringify(marker)});

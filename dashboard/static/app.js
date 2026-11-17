@@ -12,27 +12,65 @@ let destinationSequence = 0, destinationTimer;
 let planSequence = 0, lifecycleSaving = false;
 let runsSignature;
 const statusNames = {never: "실행 기록 없음", queued: "대기", running: "실행 중", succeeded: "성공", failed: "실패", timed_out: "시간 초과", cancelled: "취소", interrupted: "실행 끊김", error: "설정 오류", unknown: "조회 오류"};
-let view = "home", noticeTimer, trashSignature;
+let view = "home", trashSignature;
 const scheduleCards = new Map();
 let scheduleRefreshTask;
 let localScheduler = "launchd";
 let timelineJobSignature;
 let resetPlan, resetBusy = false;
 const terminal = new Set(["succeeded","failed","timed_out","cancelled","interrupted"]);
-function closeNotice() {
-  clearTimeout(noticeTimer);
-  noticeTimer = undefined;
-  $("notice").hidden = true;
-  $("notice-message").textContent = "";
+// Each global notification slot owns its lifetime. Replacing a slot starts anew;
+// navigation keeps these global notices (especially errors) until dismissed.
+const notifications = new Map();
+function closeNotification(id) {
+  const state = notifications.get(id);
+  if (!state) return;
+  clearTimeout(state.expiryTimer);
+  clearTimeout(state.fadeTimer);
+  state.element.onanimationend = null;
+  state.element.remove();
+  state.host.hidden = true;
+  notifications.delete(id);
 }
-function notice(text, error = false) {
-  clearTimeout(noticeTimer);
-  $("notice-message").textContent = text;
-  $("notice").className = error ? "error" : "";
-  $("notice").hidden = false;
-  noticeTimer = error ? undefined : setTimeout(closeNotice, 5000);
+function showNotification(id, text, {type = "info", autoClose = type !== "error", action} = {}) {
+  closeNotification(id);
+  const host = $(id), element = document.createElement("div");
+  element.className = "notification";
+  const message = document.createElement("span");
+  message.id = id + "-message";
+  message.className = "notification-message";
+  message.textContent = text;
+  const controls = document.createElement("span"); controls.className = "notification-actions";
+  if (action) {
+    const button = document.createElement("button"); button.type = "button";
+    button.id = id + "-open"; button.textContent = action.text; button.onclick = safe(action.run);
+    controls.append(button);
+  }
+  const close = document.createElement("button"); close.type = "button";
+  close.id = id + "-close"; close.className = "notification-close"; close.textContent = "×";
+  close.setAttribute("aria-label", id === "doctor-banner" ? "예약 진단 알림 닫기" : "알림 닫기");
+  close.onclick = () => { if (notifications.get(id) === state) closeNotification(id); };
+  controls.append(close); element.append(message, controls);
+  host.className = type === "success" ? "" : type;
+  host.setAttribute("role", type === "error" ? "alert" : "status");
+  host.setAttribute("aria-live", type === "error" ? "assertive" : "polite");
+  host.hidden = false; host.append(element);
+  const state = {host, element}; notifications.set(id, state);
+  const finish = () => { if (notifications.get(id) === state) closeNotification(id); };
+  if (type !== "error" && autoClose) state.expiryTimer = setTimeout(() => {
+    if (notifications.get(id) !== state) return;
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) { finish(); return; }
+    element.className = "notification fading";
+    element.onanimationend = event => { if (event.target === element) finish(); };
+    // Fallback also handles suppressed/interrupted CSS animations.
+    state.fadeTimer = setTimeout(finish, 200);
+  }, 5000);
 }
-$("notice-close").onclick = closeNotice;
+function closeNotice() { closeNotification("notice"); }
+function notice(text, options = false) {
+  showNotification("notice", text, typeof options === "boolean" ? {type:options ? "error" : "success"} : options);
+}
+window.addEventListener("pagehide", () => { for (const id of notifications.keys()) closeNotification(id); });
 function showView(next) {
   view = next;
   $("content").focus?.({preventScroll:true});
@@ -1257,8 +1295,10 @@ function renderDoctor(diagnosis) {
   const labels = {healthy:"정상", orphan:"고아 의심", unknown:"확인 불가"};
   const counts = diagnosis.counts || {};
   const attention = (counts.orphan || 0) + (counts.unknown || 0) + diagnosis.errors.length;
-  $("doctor-banner").hidden = false;
-  $("doctor-banner-message").textContent = (attention ? "OS 예약 확인 필요" : "OS 예약 진단 완료") + " · 정상 " + (counts.healthy || 0) + "건 · 고아 의심 " + (counts.orphan || 0) + "건 · 확인 불가 " + (counts.unknown || 0) + "건" + (diagnosis.errors.length ? " · OS 조회 오류" : "") + ". 자동 삭제하지 않았습니다.";
+  showNotification("doctor-banner", (attention ? "OS 예약 확인 필요" : "OS 예약 진단 완료") + " · 정상 " + (counts.healthy || 0) + "건 · 고아 의심 " + (counts.orphan || 0) + "건 · 확인 불가 " + (counts.unknown || 0) + "건" + (diagnosis.errors.length ? " · OS 조회 오류" : "") + ". 자동 삭제하지 않았습니다.", {
+    type: diagnosis.errors.length ? "error" : attention ? "warning" : "info",
+    action: {text:"예약 진단 확인", run:() => navigate("maintenance")}
+  });
   $("doctor-summary").textContent = diagnosis.errors.length ? "진단 실패: " + diagnosis.errors.join(" / ") : diagnosis.notice || "정상 " + (counts.healthy || 0) + "건 · 고아 의심 " + (counts.orphan || 0) + "건 · 확인 불가 " + (counts.unknown || 0) + "건";
   $("doctor-rows").replaceChildren();
   for (const row of diagnosis.schedules) {
@@ -1278,7 +1318,6 @@ async function refreshDoctor() {
   renderDoctor(await api("schedule-doctor"));
 }
 $("maintenance-menu").onclick = safe(() => navigate("maintenance"));
-$("doctor-banner-open").onclick = safe(() => navigate("maintenance"));
 $("doctor-refresh").onclick = safe(refreshDoctor);
 $("reset-preview").onclick = safe(async () => {
   if (resetBusy) throw new Error("초기화 확인·처리가 끝난 뒤 미리보기를 요청하세요.");

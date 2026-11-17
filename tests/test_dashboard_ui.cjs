@@ -16,42 +16,53 @@ function node(tagName = "") {
     },
     addEventListener(type, fn) { this.listeners[type]=fn; },
     showModal() { this.open=true; }, close() { this.open=false; }, reset() {},
-    append(...children) { this.children.push(...children); },
-    replaceChildren(...children) { this._text=""; this.children=[...children]; },
+    append(...children) { for (const child of children) if (typeof child !== "string") child.parentElement=this; this.children.push(...children); },
+    replaceChildren(...children) { for (const child of this.children) if (typeof child !== "string") child.parentElement=null; this._text=""; this.children=[]; this.append(...children); },
+    remove() { if (this.parentElement) this.parentElement.children=this.parentElement.children.filter(child=>child!==this); this.parentElement=null; },
     setAttribute(key,value) { this.attributes[key]=value; },
     insertBefore(child,next) { this.children=this.children.filter(value=>value!==child); const index=this.children.indexOf(next); this.children.splice(index < 0 ? this.children.length : index,0,child); }
   };
 }
 function dashboard() {
-  const elements = new Map(), timers = new Map();
-  let time = 0, nextId = 0;
+  const elements = new Map(), timers = new Map(), windowListeners = new Map();
+  let time = 0, nextId = 0, reducedMotion = false;
   const element = id => {
+    const find = item => item.id===id ? item : item.children?.map(find).find(Boolean);
+    for (const root of elements.values()) { const match=find(root); if (match) return match; }
     if (!elements.has(id)) elements.set(id, node());
     return elements.get(id);
   };
   const context = vm.createContext({
     document: {getElementById: element, createElement: node, hidden: true},
-    window: {addEventListener() {}},
+    window: {addEventListener(type, fn) { windowListeners.set(type, fn); }, matchMedia:()=>({matches:reducedMotion})},
     fetch: () => new Promise(() => {}),
     setInterval() {},
     setTimeout(fn, delay) { const id = ++nextId; timers.set(id, {fn, at: time + delay}); return id; },
     clearTimeout(id) { timers.delete(id); }
   });
   vm.runInContext(fs.readFileSync("dashboard/static/app.js", "utf8"), context);
-  return {context, element, tick(ms) {
-    time += ms;
-    for (const [id, timer] of [...timers]) {
-      if (timer.at <= time) { timers.delete(id); timer.fn(); }
+  return {context, element, timers, windowListeners, reduceMotion(value=true) { reducedMotion=value; }, tick(ms) {
+    const target=time+ms;
+    while (true) {
+      const next=[...timers].filter(([,timer])=>timer.at<=target).sort((a,b)=>a[1].at-b[1].at)[0];
+      if (!next) break;
+      const [id,timer]=next; time=timer.at; timers.delete(id); timer.fn();
     }
+    time=target;
   }};
 }
-test("success notice expires exactly after five seconds", () => {
+test("success notice fades after five seconds and removes its content from the DOM", () => {
   const app = dashboard();
   app.context.notice("완료");
   app.tick(4999);
   assert.equal(app.element("notice").hidden, false);
   app.tick(1);
+  assert.match(app.element("notice").children[0].className,/fading/);
+  assert.equal(app.element("notice").hidden, false);
+  app.tick(200);
   assert.equal(app.element("notice").hidden, true);
+  assert.equal(app.element("notice").children.length,0);
+  assert.equal(app.timers.size,0);
 });
 test("a new notice starts a new five-second timer", () => {
   const app = dashboard();
@@ -60,7 +71,7 @@ test("a new notice starts a new five-second timer", () => {
   assert.equal(app.element("notice-message").textContent, "새 알림");
   assert.equal(app.element("notice").hidden, false);
   app.tick(3999); assert.equal(app.element("notice").hidden, false);
-  app.tick(1); assert.equal(app.element("notice").hidden, true);
+  app.tick(201); assert.equal(app.element("notice").hidden, true);
 });
 test("error cancels prior expiry and persists until manually closed", () => {
   const app = dashboard();
@@ -69,19 +80,132 @@ test("error cancels prior expiry and persists until manually closed", () => {
   assert.equal(app.element("notice").className, "error");
   app.element("notice-close").onclick();
   assert.equal(app.element("notice").hidden, true);
+  assert.equal(app.timers.size,0);
 });
 test("manual dismissal cancels its timer without affecting the next notice", () => {
   const app = dashboard();
   app.context.notice("처음"); app.tick(3000); app.element("notice-close").onclick();
   app.context.notice("다음"); app.tick(2000);
   assert.equal(app.element("notice").hidden, false);
-  app.tick(3000); assert.equal(app.element("notice").hidden, true);
+  app.tick(3200); assert.equal(app.element("notice").hidden, true);
 });
 test("an information notice replacing an error gets normal expiry", () => {
   const app = dashboard();
-  app.context.notice("오류", true); app.context.notice("안내"); app.tick(5000);
+  app.context.notice("오류", true); app.context.notice("안내"); app.tick(5200);
   assert.equal(app.element("notice").hidden, true);
   assert.equal(app.element("notice").className, "");
+});
+
+const diagnosis = (counts={}, errors=[]) => ({counts, errors, schedules:[{id:"owned-orphan",status:"orphan",reason:"원본 경로 없음"}]});
+test("doctor info and warning notifications use the common five-second policy", () => {
+  for (const [counts,type] of [[{healthy:2},"info"],[{orphan:1},"warning"],[{unknown:1},"warning"]]) {
+    const app=dashboard(); app.context.renderDoctor(diagnosis(counts));
+    assert.equal(app.element("doctor-banner").className,type);
+    app.tick(4999); assert.equal(app.element("doctor-banner").hidden,false);
+    app.tick(1); assert.match(app.element("doctor-banner").children[0].className,/fading/);
+    app.tick(200); assert.equal(app.element("doctor-banner").hidden,true);
+    assert.equal(app.element("doctor-banner").children.length,0);
+  }
+});
+test("doctor errors persist and can be dismissed without changing diagnosis or requesting deletion", () => {
+  const app=dashboard(), data=diagnosis({unknown:1},["OS access denied"]), original=JSON.stringify(data);
+  app.context.api=()=>assert.fail("dismissal must never call the API");
+  app.context.renderDoctor(data);
+  const summary=app.element("doctor-summary").textContent, rows=app.element("doctor-rows").textContent;
+  app.tick(20000);
+  assert.equal(app.element("doctor-banner").hidden,false);
+  assert.equal(app.element("doctor-banner").className,"error");
+  assert.equal(app.element("doctor-banner").attributes.role,"alert");
+  const close=app.element("doctor-banner-close");
+  assert.equal(close.tagName,"BUTTON"); assert.equal(close.type,"button");
+  assert.equal(close.attributes["aria-label"],"예약 진단 알림 닫기");
+  close.onclick();
+  assert.equal(app.element("doctor-banner").hidden,true);
+  assert.equal(app.element("doctor-summary").textContent,summary);
+  assert.equal(app.element("doctor-rows").textContent,rows);
+  assert.equal(JSON.stringify(data),original); assert.equal(app.timers.size,0);
+});
+test("concurrent notification slots expire independently; dismissal only closes its own slot", () => {
+  const app=dashboard(); app.context.renderDoctor(diagnosis()); app.tick(3000);
+  app.context.notice("저장 완료"); app.tick(2200);
+  assert.equal(app.element("doctor-banner").hidden,true);
+  assert.equal(app.element("notice").hidden,false);
+  app.context.renderDoctor(diagnosis()); app.element("notice-close").onclick();
+  assert.equal(app.element("doctor-banner").hidden,false);
+  app.tick(5200); assert.equal(app.element("doctor-banner").hidden,true);
+  assert.equal(app.timers.size,0);
+});
+test("doctor can close before expiry and show again with a fresh lifetime", () => {
+  const app=dashboard(); app.context.renderDoctor(diagnosis()); app.tick(4000);
+  app.element("doctor-banner-close").onclick(); assert.equal(app.timers.size,0);
+  app.context.renderDoctor(diagnosis({healthy:3})); app.tick(1200);
+  assert.equal(app.element("doctor-banner").hidden,false);
+  app.tick(4000); assert.equal(app.element("doctor-banner").hidden,true);
+});
+test("repeated diagnosis replaces the old expiry and fade callbacks safely", () => {
+  const app=dashboard(); app.context.renderDoctor(diagnosis());
+  const oldExpiry=[...app.timers.values()][0].fn;
+  app.tick(5000);
+  const oldElement=app.element("doctor-banner").children[0], oldAnimationEnd=oldElement.onanimationend;
+  const oldFade=[...app.timers.values()][0].fn;
+  app.context.renderDoctor(diagnosis({orphan:2}));
+  oldExpiry(); oldFade(); oldAnimationEnd({target:oldElement}); app.tick(200);
+  assert.equal(app.element("doctor-banner").hidden,false);
+  assert.match(app.element("doctor-banner-message").textContent,/고아 의심 2건/);
+  assert.equal(app.element("doctor-banner").children.length,1);
+  app.tick(5000); assert.equal(app.element("doctor-banner").hidden,true);
+});
+test("warning persistence is explicit and reduced motion removes immediately at expiry", () => {
+  const app=dashboard(); app.reduceMotion();
+  for (const type of ["success","info","warning"]) {
+    app.context.notice(type,{type}); app.tick(5000);
+    assert.equal(app.element("notice").hidden,true);
+  }
+  app.context.notice("조치 필요",{type:"warning",autoClose:false}); app.tick(20000);
+  assert.equal(app.element("notice").hidden,false);
+  assert.equal(app.timers.size,0);
+  app.element("notice-close").onclick(); assert.equal(app.element("notice").hidden,true);
+});
+test("animation completion removes only its notification and clears the fallback timer", () => {
+  const app=dashboard(); app.context.notice("완료"); app.tick(5000);
+  const element=app.element("notice").children[0];
+  element.onanimationend({target:{}}); assert.equal(app.element("notice").hidden,false);
+  app.context.renderDoctor(diagnosis());
+  element.onanimationend({target:element});
+  assert.equal(app.element("notice").children.length,0);
+  assert.equal(app.element("doctor-banner").hidden,false);
+  assert.equal(app.timers.size,1);
+});
+test("manual close during fade cancels cleanup; detached buttons cannot close replacements", () => {
+  const app=dashboard(); app.context.notice("완료"); app.tick(5000);
+  const oldClose=app.element("notice-close");oldClose.onclick();
+  assert.equal(app.timers.size,0);
+  app.context.notice("오류",{type:"error",autoClose:true});oldClose.onclick();app.tick(20000);
+  assert.equal(app.element("notice").hidden,false);
+  assert.equal(app.element("notice-message").textContent,"오류");
+  app.element("notice-close").onclick();assert.equal(app.element("notice").hidden,true);
+});
+test("a failed diagnosis request uses a persistent dismissible error notice", async () => {
+  const app=dashboard();let requests=0;
+  app.context.api=async()=>{requests++;throw Error("진단 연결 실패");};
+  await app.element("doctor-refresh").onclick();app.tick(20000);
+  assert.equal(app.element("notice").hidden,false);
+  assert.equal(app.element("notice").className,"error");
+  assert.equal(app.element("notice-message").textContent,"진단 연결 실패");
+  app.element("notice-close").onclick();assert.equal(requests,1);
+});
+test("navigation preserves global errors; page removal clears expiry and fade timers", () => {
+  const app=dashboard(); app.context.notice("오류",true);
+  app.context.renderDoctor(diagnosis()); app.tick(5000);
+  for (const view of ["jobs","schedules","trash","maintenance"]) app.context.showView(view);
+  assert.equal(app.element("notice").hidden,false);
+  app.windowListeners.get("pagehide")();
+  assert.equal(app.timers.size,0);
+  assert.equal(app.element("notice").children.length,0);
+  assert.equal(app.element("doctor-banner").children.length,0);
+  app.tick(20000);
+  app.context.notice("돌아옴"); app.tick(5200);
+  assert.equal(app.element("notice").hidden,true);
 });
 
 function card() {
@@ -311,6 +435,7 @@ test('package download preserves the API route and encodes the Package ID',async
   const app=dashboard(), links=[], actions=[];
   vm.runInContext('selected="demo"',app.context);
   app.context.document.createElement=tag=>{
+    if (tag !== 'a') return node(tag);
     const link=node(tag);
     link.click=()=>actions.push('click'); link.remove=()=>actions.push('remove');
     links.push(link); return link;
