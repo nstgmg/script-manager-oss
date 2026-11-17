@@ -2,7 +2,7 @@
 
 **에이전트로 반복 업무를 자동화하고, 만들어 둔 스크립트는 Script Manager로 실행·관리하세요.**
 
-현재 소스의 제품 버전은 **0.1.1 (릴리스 준비 중)**입니다. 발행된 안정판은 [v0.1.0](https://github.com/nstgmg/script-manager-oss/releases/tag/v0.1.0)이며, [v0.1.1 릴리스 노트](docs/releases/v0.1.1.md)는 준비 문서입니다. VERSION 변경이나 main 반영만으로 Tag·Release가 발행된 것은 아닙니다.
+현재 소스의 제품 버전은 **0.1.1**입니다. 변경·호환성·검증 범위는 [v0.1.1 릴리스 노트](docs/releases/v0.1.1.md)를 참고하세요. 최신 발행 안정판은 [공식 Releases](https://github.com/nstgmg/script-manager-oss/releases/latest)에서 확인하고 Tag·커밋·VERSION을 대조합니다. VERSION 변경이나 main 반영만으로 Tag·Release가 발행되는 것은 아닙니다.
 
 Script Manager는 내 컴퓨터에서 자동화 작업과 실행 기록, 저장 결과, 예약 일정을 관리하는 무료 오픈소스 도구입니다. 코드를 몰라도 Codex나 Claude Code 같은 코딩 에이전트에게 원하는 일을 설명하면, 에이전트가 재사용할 스크립트를 작성해 작업으로 등록할 수 있습니다.
 
@@ -119,7 +119,7 @@ macOS 예약의 지정 요일·시각 도달에 따른 실행, 절전 복귀·�
 
 ## 문서와 Release
 
-- [v0.1.1 Release Notes (준비 중)](docs/releases/v0.1.1.md) · [사전 감사·검증 범위](docs/validation.md#v011-pre-release-audit--2026-11-18)
+- [v0.1.1 Release Notes](docs/releases/v0.1.1.md) · [최신 공식 Release](https://github.com/nstgmg/script-manager-oss/releases/latest) · [사전 감사·검증 범위](docs/validation.md#v011-pre-release-audit--2026-11-18)
 - [v0.1.0 Release](https://github.com/nstgmg/script-manager-oss/releases/tag/v0.1.0) · [Release Notes](docs/releases/v0.1.0.md) · [전체 Releases](https://github.com/nstgmg/script-manager-oss/releases)
 - [사용자 가이드](USER_GUIDE.md) · [할 수 있는 일과 한계](docs/capabilities.md)
 - [설치·문제 해결](INSTALL.md) · [버전·업데이트](UPDATE.md) · [초기화·완전 삭제·예약 복구](docs/uninstall.md)

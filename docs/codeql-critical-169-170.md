@@ -201,3 +201,19 @@ classification alone does not claim that GitHub state has already changed.
 No other High finding is reclassified by this review. The two Critical
 dispositions can resolve this specific release block once verified, but do
 not authorize a Tag/Release or certify zero vulnerabilities.
+
+## Publication status follow-up — 2026-11-18
+
+The preceding investigation and disposition procedure are preserved as the
+historical review. During the subsequent publication gate, the signed-in GitHub
+UI confirmed [#169](https://github.com/nstgmg/script-manager-oss/security/code-scanning/169)
+and [#170](https://github.com/nstgmg/script-manager-oss/security/code-scanning/170)
+were **Dismissed**, each with an individual **False positive** activity entry
+linking the analysis at `f558ddd95de109227a28275e6e383cc127129373`.
+The main-branch Critical filter showed **0 Open / 4 Closed**.
+[CodeQL run 44132233156](https://github.com/nstgmg/script-manager-oss/actions/runs/44132233156)
+completed successfully for that SHA, with Python and JavaScript/TypeScript
+analysis. These observations do not reclassify other open findings or certify
+native Windows behavior or zero vulnerabilities. The final documentation
+commit's checks and a fresh Critical filter are separate pre-tag gates; this
+follow-up does not present historical regressions as final-commit test results.

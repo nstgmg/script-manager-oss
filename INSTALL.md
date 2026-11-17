@@ -6,7 +6,7 @@
 
 ## 지원 범위와 사전 준비
 
-현재 소스의 VERSION은 `0.1.1`이며 릴리스 준비 상태입니다. 발행된 안정판 `v0.1.0`과 [v0.1.1 준비 본문](docs/releases/v0.1.1.md)을 구분하고, 설치할 안정 소스는 [공식 Releases](https://github.com/nstgmg/script-manager-oss/releases)에서 Tag·커밋·VERSION을 대조해 선택하세요. 이번 문서 정리는 새 OS 검증이나 지원 범위 변경이 아닙니다.
+현재 소스의 VERSION은 `0.1.1`입니다. [v0.1.1 릴리스 노트](docs/releases/v0.1.1.md)에서 변경·호환성·검증 범위를 확인하고, 설치할 안정 소스는 [공식 Releases](https://github.com/nstgmg/script-manager-oss/releases)에서 Tag·커밋·VERSION을 대조해 선택하세요. VERSION이나 main 반영만으로 공식 발행을 판단하지 않습니다. 이번 문서 정리는 새 OS 검증이나 지원 범위 변경이 아닙니다.
 
 | 범위 | macOS | Windows | Linux |
 | --- | --- | --- | --- |
@@ -309,4 +309,4 @@ Python 3.13부터 Windows의 `mkdir(mode=0o700)`은 부모 권한을 상속하�
 
 [pip 공식 옵션](https://pip.pypa.io/en/stable/cli/pip_install/#cmdoption-progress-bar)의 진행 표시 끄기와 [PowerShell native 종료 코드 처리](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_automatic_variables?view=powershell-5.1#lastexitcode)를 따릅니다. PowerShell 5.1/7, 프로필/비대화형, CMD에서 같은 환경을 비교하는 실제 Windows 후속 검증은 [검증 기록](docs/validation.md)에 남깁니다.
 
-기존 설치의 버전 확인·업데이트는 [UPDATE](UPDATE.md)를 따릅니다. “업데이트 확인해 줘”는 확인·안내만 수행하고, 명시적인 “업데이트해 줘” 요청일 때만 안전 점검 후 승인 범위에서 적용합니다. `v0.1.0`은 발행된 안정판이고 현재 VERSION `0.1.1`은 다음 릴리스 준비 상태입니다. 위 기본 clone은 `main` 개발 소스 설치이며 준비 커밋을 안정 Release의 대용으로 사용하지 않습니다. 저장소 관리자 간 수동 소스 반영은 별도 [기여 절차](CONTRIBUTING.md)를 따릅니다. 설치 제거를 이유로 예약·Job·runtime을 자동 삭제하지 않습니다.
+기존 설치의 버전 확인·업데이트는 [UPDATE](UPDATE.md)를 따릅니다. “업데이트 확인해 줘”는 확인·안내만 수행하고, 명시적인 “업데이트해 줘” 요청일 때만 안전 점검 후 승인 범위에서 적용합니다. 최신 안정판은 [공식 Releases](https://github.com/nstgmg/script-manager-oss/releases/latest)에서 확인합니다. 위 기본 clone은 `main` 개발 소스 설치이며 main 커밋이나 VERSION만을 안정 Release의 대용으로 사용하지 않습니다. 저장소 관리자 간 수동 소스 반영은 별도 [기여 절차](CONTRIBUTING.md)를 따릅니다. 설치 제거를 이유로 예약·Job·runtime을 자동 삭제하지 않습니다.

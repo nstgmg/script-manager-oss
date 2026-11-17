@@ -14,7 +14,7 @@ Git·Python·다운로드 접근이 필요하며, 에이전트가 새 설치와 
 
 ## 버전 확인과 제품 업데이트
 
-처음 설치는 [INSTALL](INSTALL.md), 기존 설치의 업데이트는 [UPDATE](UPDATE.md)를 따릅니다. 발행된 안정판은 `v0.1.0`이며, 루트 [VERSION](VERSION)의 `0.1.1`과 [릴리스 노트](docs/releases/v0.1.1.md)는 다음 릴리스 준비 상태입니다. 기본 clone은 `main` 개발 소스 설치이며 VERSION 변경만으로 새 안정 Release가 생기지 않습니다. 실제 [공식 Releases](https://github.com/nstgmg/script-manager-oss/releases)의 Tag·커밋·VERSION을 대조하세요. 기존 Windows 설치는 [호환성 확인](UPDATE.md#windows-기존-설치의-v011-업데이트-전-확인)을 먼저 수행합니다.
+처음 설치는 [INSTALL](INSTALL.md), 기존 설치의 업데이트는 [UPDATE](UPDATE.md)를 따릅니다. 루트 [VERSION](VERSION)은 `0.1.1`이며, [릴리스 노트](docs/releases/v0.1.1.md)에 해당 버전의 변경·호환성·검증 범위가 있습니다. 기본 clone은 `main` 개발 소스 설치이며 VERSION 변경만으로 새 안정 Release가 생기지 않습니다. 최신 안정판은 [공식 최신 Release](https://github.com/nstgmg/script-manager-oss/releases/latest)에서 확인하고 Tag·커밋·VERSION을 대조하세요. 기존 Windows 설치는 [호환성 확인](UPDATE.md#windows-기존-설치의-v011-업데이트-전-확인)을 먼저 수행합니다.
 
 > Script Manager 업데이트 확인해 줘.
 

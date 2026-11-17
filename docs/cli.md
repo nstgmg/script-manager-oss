@@ -2,7 +2,7 @@
 
 Use `python -m runner [--root ROOT] COMMAND ...` from the code directory and the installed venv. Global --root comes before COMMAND; it selects data, not Python import search paths. See [installation](../INSTALL.md). Run `python -m runner COMMAND --help` before unfamiliar operations. Results are JSON; handled errors are JSON on stderr. Normal errors/failed runs return 1, argument errors 2. Query success does not mean every listed Run succeeded.
 
-On Windows, affected snapshot, saved Run metadata and maintenance paths require local fixed NTFS; atomic publication requires `FileRenameInfoEx` POSIX replacement support. UNC/network, removable and non-NTFS paths are refused by the confined backend. Review [installation requirements](../INSTALL.md#windows-파일시스템과-원자-저장-요구-사항) and [existing-install update checks](../UPDATE.md#windows-기존-설치의-v011-업데이트-전-확인) before using the prepared v0.1.1 code. Latest native Windows verification remains pending.
+On Windows, affected snapshot, saved Run metadata and maintenance paths require local fixed NTFS; atomic publication requires `FileRenameInfoEx` POSIX replacement support. UNC/network, removable and non-NTFS paths are refused by the confined backend. Review [installation requirements](../INSTALL.md#windows-파일시스템과-원자-저장-요구-사항) and [existing-install update checks](../UPDATE.md#windows-기존-설치의-v011-업데이트-전-확인) before using v0.1.1. Latest native Windows verification remains pending.
 
 | Command | Supported purpose |
 | --- | --- |

@@ -1,14 +1,14 @@
 # 버전 확인과 업데이트
 
-Script Manager의 제품 버전은 루트 [VERSION](VERSION)에 `MAJOR.MINOR.PATCH`로 기록하며, 공식 GitHub Release의 Tag `vMAJOR.MINOR.PATCH`와 대응합니다. Job YAML의 `version`, 실행 파라미터 계약 버전, Package ID는 제품 버전과 별개입니다. `v0.1.0`은 발행된 안정판이며, 현재 VERSION `0.1.1`은 **다음 릴리스 준비 상태**입니다. VERSION 변경이나 main 반영만으로 v0.1.1 Tag·Release가 발행된 것은 아닙니다.
+Script Manager의 제품 버전은 루트 [VERSION](VERSION)에 `MAJOR.MINOR.PATCH`로 기록하며, 공식 GitHub Release의 Tag `vMAJOR.MINOR.PATCH`와 대응합니다. Job YAML의 `version`, 실행 파라미터 계약 버전, Package ID는 제품 버전과 별개입니다. 현재 소스의 VERSION은 `0.1.1`입니다. 최신 발행 안정판은 [공식 최신 Release](https://github.com/nstgmg/script-manager-oss/releases/latest)에서 확인하며, VERSION 변경이나 main 반영만으로 Tag·Release 발행을 판단하지 않습니다.
 
 공식 배포 여부와 변경 내용은 [nstgmg/script-manager-oss Releases](https://github.com/nstgmg/script-manager-oss/releases)에서 확인합니다. 이 문서는 에이전트가 수행하는 수동 절차이며 자동 업데이트·자동 재시작 기능은 없습니다. Tag와 Release 발행은 저장소 관리자의 별도 작업입니다.
 
-[v0.1.0 Release Notes](docs/releases/v0.1.0.md)는 발행된 첫 릴리스의 본문이며, [v0.1.1 Release Notes](docs/releases/v0.1.1.md)는 준비 중인 변경·호환성·검증 범위를 설명합니다. 실제 배포 여부는 Releases에서 별도로 확인합니다. 과거 [v0.1.0 준비 검토 기록](docs/validation.md#v010-release-notes-review--2026-11-14)은 당시 상태로 보존합니다.
+[v0.1.0 Release Notes](docs/releases/v0.1.0.md)는 발행된 첫 릴리스의 본문이며, [v0.1.1 Release Notes](docs/releases/v0.1.1.md)는 해당 버전의 변경·호환성·검증 범위를 설명합니다. 실제 배포 여부는 Releases에서 별도로 확인합니다. 과거 [v0.1.0 준비 검토 기록](docs/validation.md#v010-release-notes-review--2026-11-14)은 당시 상태로 보존합니다.
 
 ## 설치와 업데이트 요청 구분
 
-처음 설치는 [INSTALL](INSTALL.md)을 따릅니다. README/INSTALL의 기본 clone은 `main` 개발 소스 설치이며 준비 중인 0.1.1을 발행된 안정판으로 안내하지 않습니다. 안정판 설치는 실제 선택한 Release의 Tag·커밋과 VERSION을 대조한 뒤 해당 소스로 INSTALL 절차를 수행합니다. 기존 설치에는 새 설치용 초기화·합성 Job 등록을 반복하지 않습니다.
+처음 설치는 [INSTALL](INSTALL.md)을 따릅니다. README/INSTALL의 기본 clone은 `main` 개발 소스 설치이며 발행된 안정판과 동일하다고 가정하지 않습니다. 안정판 설치는 실제 선택한 Release의 Tag·커밋과 VERSION을 대조한 뒤 해당 소스로 INSTALL 절차를 수행합니다. 기존 설치에는 새 설치용 초기화·합성 Job 등록을 반복하지 않습니다.
 
 | 사용자 요청 | 에이전트가 수행할 범위 |
 | --- | --- |
@@ -45,7 +45,7 @@ git show HEAD:VERSION
 
 Tag `vX.Y.Z`를 숫자 버전으로 비교하고, 해당 Tag 커밋의 VERSION이 `X.Y.Z`인지 확인합니다. 불일치나 알 수 없는 버전 형식은 적용을 보류합니다. 로컬 HEAD가 같은 VERSION의 공식 Tag와 다르면 변경된/개발 소스 상태임을 별도로 알립니다. 로컬이 최신 안정판보다 높아도 자동 다운그레이드하지 않습니다.
 
-**공식 안정 Release가 없거나 현재 설치보다 새로운 안정 Release가 없으면 적용할 안정 업데이트가 없다고 안내하고 적용을 멈춥니다.** 현재 0.1.1 준비 소스의 VERSION이 v0.1.0보다 높다는 이유로 이를 배포 완료로 보거나 v0.1.0으로 자동 다운그레이드하지 않습니다. 최신 `main`을 안정 버전으로 간주하거나 `git pull`하지 않습니다. 개발 소스 반영은 별도 명시적 요청과 검토가 필요한 작업입니다.
+**공식 안정 Release가 없거나 현재 설치보다 새로운 안정 Release가 없으면 적용할 안정 업데이트가 없다고 안내하고 적용을 멈춥니다.** 개발 소스의 VERSION이 최신 안정판보다 높다는 이유로 이를 배포 완료로 보거나 안정판으로 자동 다운그레이드하지 않습니다. 최신 `main`을 안정 버전으로 간주하거나 `git pull`하지 않습니다. 개발 소스 반영은 별도 명시적 요청과 검토가 필요한 작업입니다.
 
 API의 404만으로 Release 부재를 단정하지 말고 저장소 접근과 Releases 목록도 확인합니다. DNS·권한·인증·API 제한·통신 실패는 “확인 불가”로 구별합니다. 승인된 네트워크 접근만 사용하고 인증정보를 읽거나 제한을 우회하지 않습니다.
 
@@ -57,7 +57,7 @@ API의 404만으로 Release 부재를 단정하지 말고 저장소 접근과 Re
 
 ### Windows 기존 설치의 v0.1.1 업데이트 전 확인
 
-이 안내는 이미 반영된 파일시스템 구현의 제약을 명시합니다. 문서 변경이 새 Windows 지원이나 native 검증 완료를 뜻하지 않습니다. v0.1.1이 발행되기 전에는 안정 업데이트 대상으로 선택하지 않습니다.
+이 안내는 이미 반영된 파일시스템 구현의 제약을 명시합니다. 문서 변경이 새 Windows 지원이나 native 검증 완료를 뜻하지 않습니다. 안정 업데이트 대상은 실제 발행된 공식 Release에서 선택한 뒤 아래 호환성을 확인합니다.
 
 1. **경로·OS·파일시스템 확인:** 기존 코드 루트·실제 데이터 루트(`--root`)·Job 소스·스냅샷/Package 임시 경로, Windows build와 실행 계정/Python을 기록합니다. 읽기 전용 OS 속성 조회로 관련 경로가 local fixed NTFS인지, UNC/네트워크·이동식·비 NTFS 또는 junction/reparse 경유인지 확인합니다. [설치 요구 사항](INSTALL.md#windows-파일시스템과-원자-저장-요구-사항)에 맞지 않으면 코드 전환을 보류합니다.
 2. **원자 저장 API 확인:** metadata 저장에는 `FileRenameInfoEx`의 POSIX replacement 지원이 필요합니다. 지원되는 OS/API·드라이버·실행 문맥의 근거를 확인하며, 단순히 NTFS이거나 이전 버전이 실행됐다는 사실로 충족을 단정하지 않습니다. Windows 10 build 19045의 과거 외부 보고는 최신 backend 인증이 아닙니다. 근거가 부족하면 호환성 미확인으로 보류하고, 필요한 격리 합성 검증은 별도 범위로 계획합니다. 운영 Run 재제출이나 실제 데이터의 교체/삭제로 시험하지 않습니다.

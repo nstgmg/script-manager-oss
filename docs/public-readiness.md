@@ -1,6 +1,6 @@
 # 공개 상태와 검증 기록
 
-2026-11-18 문서 정리: `v0.1.0`은 발행되었고 현재 VERSION `0.1.1`은 다음 릴리스 준비 상태입니다. 최신 제품 검증 범위는 [v0.1.1 사전 감사](validation.md#v011-pre-release-audit--2026-11-18), 현재 설치 제약은 [INSTALL](../INSTALL.md#windows-파일시스템과-원자-저장-요구-사항)을 따릅니다. 아래 GitHub 보안 설정·경고 건수는 명시된 과거 확인일의 기록이며 이번 정리에서 다시 확인하거나 변경하지 않았습니다.
+2026-11-18 문서 정리: 현재 소스의 VERSION은 `0.1.1`이며 실제 발행 상태는 [공식 Releases](https://github.com/nstgmg/script-manager-oss/releases/latest)에서 확인합니다. 최신 제품 검증 범위는 [v0.1.1 사전 감사](validation.md#v011-pre-release-audit--2026-11-18), 현재 설치 제약은 [INSTALL](../INSTALL.md#windows-파일시스템과-원자-저장-요구-사항)을 따릅니다. 아래 GitHub 보안 설정·경고 건수는 명시된 과거 확인일의 기록이며 최신 #169·#170 처리 결과는 [개별 조사 기록](codeql-critical-169-170.md#publication-status-follow-up--2026-11-18)과 구분합니다. 이번 문서 정리에서 보안 설정이나 경고 상태를 변경하지 않았습니다.
 
 상태 확인일: 2026-11-13 (Asia/Seoul). 저장소 `nstgmg/script-manager-oss`는 **Public**이며 GitHub Security Overview에서 **Private Vulnerability Reporting Enabled**를 확인했습니다. Security policy, Security advisories, Dependabot alerts, Code scanning alerts, Secret scanning alerts도 Enabled로 관찰했습니다. 이 확인은 설정 변경, 알림 전달·비관리자 제보 폼·메일 송수신의 새 검증을 뜻하지 않습니다.
 
