@@ -1,14 +1,14 @@
 # 버전 확인과 업데이트
 
-Script Manager의 제품 버전은 루트 [VERSION](VERSION)에 `MAJOR.MINOR.PATCH`로 기록하며, 공식 GitHub Release의 Tag `vMAJOR.MINOR.PATCH`와 대응합니다. Job YAML의 `version`, 실행 파라미터 계약 버전, Package ID는 제품 버전과 별개입니다. 현재 `0.1.0`은 **예정된 첫 배포 버전**입니다. 아직 `v0.1.0` Release를 발행하지 않았으며, VERSION 파일이나 Tag만 있다고 공식 배포가 완료된 것은 아닙니다.
+Script Manager의 제품 버전은 루트 [VERSION](VERSION)에 `MAJOR.MINOR.PATCH`로 기록하며, 공식 GitHub Release의 Tag `vMAJOR.MINOR.PATCH`와 대응합니다. Job YAML의 `version`, 실행 파라미터 계약 버전, Package ID는 제품 버전과 별개입니다. `v0.1.0`은 발행된 안정판이며, 현재 VERSION `0.1.1`은 **다음 릴리스 준비 상태**입니다. VERSION 변경이나 main 반영만으로 v0.1.1 Tag·Release가 발행된 것은 아닙니다.
 
 공식 배포 여부와 변경 내용은 [nstgmg/script-manager-oss Releases](https://github.com/nstgmg/script-manager-oss/releases)에서 확인합니다. 이 문서는 에이전트가 수행하는 수동 절차이며 자동 업데이트·자동 재시작 기능은 없습니다. Tag와 Release 발행은 저장소 관리자의 별도 작업입니다.
 
-[v0.1.0 Release Notes](docs/releases/v0.1.0.md)는 첫 공식 릴리스의 발행 준비용 본문입니다. [검토 기록](docs/validation.md#v010-release-notes-review--2026-11-14)과 함께 확인하되, 저장소에 본문이 있다는 사실만으로 안정 Release가 존재한다고 판단하지 않습니다.
+[v0.1.0 Release Notes](docs/releases/v0.1.0.md)는 발행된 첫 릴리스의 본문이며, [v0.1.1 Release Notes](docs/releases/v0.1.1.md)는 준비 중인 변경·호환성·검증 범위를 설명합니다. 실제 배포 여부는 Releases에서 별도로 확인합니다. 과거 [v0.1.0 준비 검토 기록](docs/validation.md#v010-release-notes-review--2026-11-14)은 당시 상태로 보존합니다.
 
 ## 설치와 업데이트 요청 구분
 
-처음 설치는 [INSTALL](INSTALL.md)을 따릅니다. 현재 README/INSTALL의 기본 clone은 `main` 소스를 받는 개발 소스 설치이며, Release 발행 전에는 안정 버전 설치라고 안내하지 않습니다. 공식 Release가 생기면 새 설치도 선택한 안정 Release의 Tag·커밋과 VERSION을 확인한 뒤 해당 소스로 INSTALL 절차를 수행합니다. 기존 설치에는 새 설치용 초기화·합성 Job 등록을 반복하지 않습니다.
+처음 설치는 [INSTALL](INSTALL.md)을 따릅니다. README/INSTALL의 기본 clone은 `main` 개발 소스 설치이며 준비 중인 0.1.1을 발행된 안정판으로 안내하지 않습니다. 안정판 설치는 실제 선택한 Release의 Tag·커밋과 VERSION을 대조한 뒤 해당 소스로 INSTALL 절차를 수행합니다. 기존 설치에는 새 설치용 초기화·합성 Job 등록을 반복하지 않습니다.
 
 | 사용자 요청 | 에이전트가 수행할 범위 |
 | --- | --- |
@@ -45,7 +45,7 @@ git show HEAD:VERSION
 
 Tag `vX.Y.Z`를 숫자 버전으로 비교하고, 해당 Tag 커밋의 VERSION이 `X.Y.Z`인지 확인합니다. 불일치나 알 수 없는 버전 형식은 적용을 보류합니다. 로컬 HEAD가 같은 VERSION의 공식 Tag와 다르면 변경된/개발 소스 상태임을 별도로 알립니다. 로컬이 최신 안정판보다 높아도 자동 다운그레이드하지 않습니다.
 
-**안정 Release가 없으면 “공식 안정 Release가 없어 적용할 안정 업데이트가 없습니다. 로컬 0.1.0은 예정 버전입니다”라고 안내하고 적용을 멈춥니다**(로컬 버전이 없으면 그 사실을 대신 보고). 최신 `main`을 안정 버전으로 간주하거나 `git pull`하지 않습니다. 개발 소스 반영은 별도 명시적 요청과 검토가 필요한 작업입니다.
+**공식 안정 Release가 없거나 현재 설치보다 새로운 안정 Release가 없으면 적용할 안정 업데이트가 없다고 안내하고 적용을 멈춥니다.** 현재 0.1.1 준비 소스의 VERSION이 v0.1.0보다 높다는 이유로 이를 배포 완료로 보거나 v0.1.0으로 자동 다운그레이드하지 않습니다. 최신 `main`을 안정 버전으로 간주하거나 `git pull`하지 않습니다. 개발 소스 반영은 별도 명시적 요청과 검토가 필요한 작업입니다.
 
 API의 404만으로 Release 부재를 단정하지 말고 저장소 접근과 Releases 목록도 확인합니다. DNS·권한·인증·API 제한·통신 실패는 “확인 불가”로 구별합니다. 승인된 네트워크 접근만 사용하고 인증정보를 읽거나 제한을 우회하지 않습니다.
 
@@ -54,6 +54,16 @@ API의 404만으로 Release 부재를 단정하지 말고 저장소 접근과 Re
 현재 버전 이후부터 목표 안정 버전까지의 Release Notes와 연결된 마이그레이션 문서를 순서대로 읽습니다. 버전 미기록 설치는 식별한 HEAD 이후 변경을 함께 검토합니다. 중간 버전 적용 필요 여부, 지원 Python/OS, 제품·Job 의존성, CLI·Job YAML·파라미터·결과 형식, 데이터·예약·설정 호환성과 알려진 제한을 확인합니다. 필요한 설명이 없거나 비호환 변경의 영향이 불명확하면 추측으로 적용하지 않습니다.
 
 제품 업데이트를 이유로 기존 Job의 코드·계약·의존성이나 Schedule 정의를 바꾸지 않습니다. 필요한 마이그레이션이 있으면 대상·영향·백업·검증·복구 가능성을 구체적으로 안내하고 별도 승인된 범위에서만 수행합니다.
+
+### Windows 기존 설치의 v0.1.1 업데이트 전 확인
+
+이 안내는 이미 반영된 파일시스템 구현의 제약을 명시합니다. 문서 변경이 새 Windows 지원이나 native 검증 완료를 뜻하지 않습니다. v0.1.1이 발행되기 전에는 안정 업데이트 대상으로 선택하지 않습니다.
+
+1. **경로·OS·파일시스템 확인:** 기존 코드 루트·실제 데이터 루트(`--root`)·Job 소스·스냅샷/Package 임시 경로, Windows build와 실행 계정/Python을 기록합니다. 읽기 전용 OS 속성 조회로 관련 경로가 local fixed NTFS인지, UNC/네트워크·이동식·비 NTFS 또는 junction/reparse 경유인지 확인합니다. [설치 요구 사항](INSTALL.md#windows-파일시스템과-원자-저장-요구-사항)에 맞지 않으면 코드 전환을 보류합니다.
+2. **원자 저장 API 확인:** metadata 저장에는 `FileRenameInfoEx`의 POSIX replacement 지원이 필요합니다. 지원되는 OS/API·드라이버·실행 문맥의 근거를 확인하며, 단순히 NTFS이거나 이전 버전이 실행됐다는 사실로 충족을 단정하지 않습니다. Windows 10 build 19045의 과거 외부 보고는 최신 backend 인증이 아닙니다. 근거가 부족하면 호환성 미확인으로 보류하고, 필요한 격리 합성 검증은 별도 범위로 계획합니다. 운영 Run 재제출이나 실제 데이터의 교체/삭제로 시험하지 않습니다.
+3. **데이터·ACL 보존:** Jobs·Schedules/OS 등록·Output·State·Workspace·설정·비밀정보·환경·Packages/history와 로컬 변경을 보존합니다. 부모 ACL이 필요한 계정에만 상속되는지 확인하되 실제 `.env`는 읽지 않습니다. 코드 업데이트는 기존 ACL을 수리하지 않습니다. 접근 거부는 [ACL 진단](INSTALL.md#windows-런타임-acl-복구)으로 분리하고 자동 elevation·ACL reset·Everyone 권한 추가를 하지 않습니다.
+4. **업데이트와 복구 분리:** 위 조건이 확인된 뒤 아래 실행 상태 점검과 승인된 코드 업데이트를 진행합니다. 미지원 경로를 발견해도 자동 데이터 이동·새 root 전환·설치 ID 재생성·활성 예약 재등록·서비스 재시작을 하지 않습니다. 별도 변경 계획과 필요한 승인을 먼저 확인합니다. 업데이트에 `reset` 또는 `uninstall`은 필요하지 않습니다.
+5. **계약과 검증 한계:** Job YAML·공개 파라미터 계약·선언 의존성의 일괄 마이그레이션은 없습니다. 설치 ID는 root에 묶이고 lazy 생성되며, 과거 유지보수 확인 해시는 재사용하지 않고 Windows 승인 schema 2의 새 preview가 필요합니다. 최신 native NTFS·ACL/token·locking·동시 metadata 관찰·초기화·수정된 예약 소유권 검증은 아직 미완료입니다. 외부 설치/선택 UI·보고서/구코드 calendar 보고와 구분한 [검증 범위](docs/validation.md#v011-pre-release-audit--2026-11-18)를 유지합니다.
 
 ## 4. 사용자 데이터와 설정 보호
 

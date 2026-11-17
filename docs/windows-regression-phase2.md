@@ -1,5 +1,7 @@
 # Windows 회귀 안정화 — 2차
 
+이 문서는 `1cc0d36` 당시 구현·fixture·실행 결과를 보존합니다. 이후 `c4a616d`/`75b4539`에서 Windows 유지보수는 handle backend로 변경되어, 아래 경로 기반 삭제 fixture 설명은 현재 구현 설명이 아닙니다. 최신 제약과 미검증 범위는 [v0.1.1 감사 기록](validation.md#v011-pre-release-audit--2026-11-18)을 따릅니다. 과거 실패·SKIP과 후속 확인 필요 항목은 삭제하거나 최신 native PASS로 바꾸지 않습니다.
+
 후속 `1cc0d36` Windows 로그의 Run JSON 공유 충돌 분석·수정·검증 경계는
 [Windows Run metadata](windows-run-metadata.md)에 기록했다. 아래는 기존 2차 작업의 기록이다.
 

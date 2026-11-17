@@ -1,6 +1,102 @@
 # Validation records
 
+## v0.1.1 pre-release audit — 2026-11-18
+
+Product-code baseline: `83fc283940148a9d8f7bdb0bc107c5ec177c3b65`, compared
+with published `v0.1.0` commit `77a04ec54b8f50e83f9b9408c56824e966d46f83`:
+17 commits, 85 changed files. Fetch and remote refs matched local main.
+The public Releases API confirmed stable `v0.1.0`; no public `v0.1.1` Release
+or remote tag was present. An unauthenticated API cannot establish private
+draft status. The subsequent version/documentation preparation sets VERSION
+to `0.1.1`; it does not create a Tag or publish a Release.
+
+### Actual audit execution
+
+Host: macOS 15.6.1 (24G90) ARM64, existing venv CPython 3.9.6,
+Node 20.11.1, Chrome 157.0.8103.79. Dependencies were not changed.
+
+| Check on the product-code baseline | Result and scope |
+| --- | --- |
+| Python, `env -u SCRIPT_MANAGER_TEST_LAUNCHD -u SCRIPT_MANAGER_TEST_WINDOWS PYTHONDONTWRITEBYTECODE=1 .venv/bin/python -B -m unittest discover -v` | **397 test methods: 364 PASS, 33 SKIP, 0 failures/errors**, 49.988s, exit 0 |
+| Node, `node --test tests/test_dashboard_ui.cjs` | **81 PASS, 0 failures/skips**, exit 0 |
+| Chrome browser methods, included in Python total | **5 PASS**: Job detail, management, notifications, offline report, external report path/CSV. Desktop/mobile and notification reduced-motion checks included |
+| Notification timing scope | Node tests verify the 4,999/5,000ms boundary. Chrome virtualizes the five-second lifetime while checking real CSS animation and native keyboard interaction; this is not a five-second wall-clock test |
+| Static/environment checks | 64 changed Python files parsed with Python 3.9 grammar; three JavaScript syntax checks, CLI help, pip check and git diff --check passed |
+| Exact-SHA GitHub CodeQL | [Run 44120697082](https://github.com/nstgmg/script-manager-oss/actions/runs/44120697082): Python and JavaScript/TypeScript completed successfully for `83fc283…`. This is analysis execution, not functional CI or a zero-alert result |
+
+The 33 skips comprise **29 Windows-specific** checks (11 handle-approval
+metadata, 10 confined NTFS I/O, three byte-range/hardlink locks, one sharing
+probe, one junction, one PowerShell parser, one ACL readback and one opt-in
+Task Scheduler case), plus **four macOS opt-in** cases (three launchd and one
+maintenance). No native scheduling opt-in was enabled. Tests used synthetic
+temporary data, fixture-owned loopback servers and offline Chrome profiles;
+no operating Job/data reset, actual OS registration/removal, resident
+Dashboard control or SSH was performed.
+
+### Native evidence and remaining limits
+
+- **macOS:** earlier ARM64/Python 3.13.18 independent installation and main
+  feature checks, and the four distinct 2026-11-14 native launchd/maintenance
+  cases remain historical evidence. Initial wrapper-timing failure, targeted
+  successful rerun and zero-test-reservation cleanup records are preserved.
+  They were not repeated in this audit. Calendar date arrival, sleep/wake,
+  login/reboot persistence, Intel Macs and other OS/Python combinations are
+  outside that evidence. The current-source full run above used 3.9.6,
+  not a new 3.13 full regression.
+- **Windows:** external reports cover Python 3.14.3 basic installation/example/
+  saved results, selected UI fixtures and report/CSV behavior, and an older-code
+  calendar Run/removal. The `d658a3e` report of 313 PASS/50 SKIP and four of ten
+  failed concurrent observation runs is preserved in
+  [the containment history](windows-results-containment.md); it is not a
+  latest-backend result. The `acf2188`/`c4a616d`/`75b4539` native locking,
+  confined I/O and approval tests were skipped on Mac. Latest NTFS/API support,
+  ACL/token interaction, concurrent observation, cleanup and fixed task
+  ownership remain native verification gaps. T1/T2 fixture PASS does not
+  certify full Dashboard operation. Actual OS clipboard pasting is unverified.
+- **Linux/SSH:** POSIX helper and mocked transport/systemd tests are not native
+  Linux installation, real systemd or SSH deployment verification. Linux local
+  scheduling is unsupported. Remote `required_env`, managed local-style paths,
+  reports and log/result synchronization retain their
+  [existing limitations](packages.md#current-remote-limitations).
+- **Security:** the audit's unauthenticated alerts API request returned HTTP
+  401. The 66 Open/90 Closed and Critical #154 entries below describe their
+  dated historical observation, not a current alert count or a new disposition.
+  Successful CodeQL does not close those follow-ups. No security setting or
+  alert state was changed.
+
+### Version and documentation preparation
+
+The preparation after this audit addresses R1 (VERSION `0.1.1`, release-status
+consistency and [preserved English Release Notes](releases/v0.1.1.md)) and R2
+(explicit [Windows local fixed NTFS/API requirements](../INSTALL.md#windows-파일시스템과-원자-저장-요구-사항)
+and [existing-install update checks](../UPDATE.md#windows-기존-설치의-v011-업데이트-전-확인)).
+These documents describe the already implemented compatibility restriction;
+they neither add platform support nor certify native Windows success.
+
+Only VERSION and Markdown documents are changed in preparation. Validation
+is limited to the file/diff allowlist, version/status consistency, local links
+and anchors, and preservation of the published v0.1.0 notes/tag. Product
+regressions are not repeated without a code change, and reset/uninstall,
+native OS schedules, data/ACL migration and service control are not used as
+checks. The exact preparation commit and its remote Actions outcome are
+reported after commit/push to avoid a self-referential SHA in this document.
+Earlier records below retain their original baselines and outcomes.
+
+Preparation static checks passed: **16 changed files (VERSION and 15 Markdown
+documents), 213 local file links and 66 heading anchors checked, zero link
+errors**. The diff allowlist contained no product code or test changes; all
+original lines in the annotated Windows/validation histories, the archived
+public-readiness record, v0.1.0 Release Notes and annotated tag identity were
+preserved. No runtime or platform test was rerun for this documentation change.
+
 ## Windows T1–T4 verification — user-reported results
+
+Historical report and correction status: the original T3 assertion failure
+below was addressed by the test-only `08bfa2f` change, normalizing textarea
+CRLF/LF comparison and using the displayed value's selection length. The
+Mac audit browser run above passed with that correction. No subsequent
+native Windows automated rerun or actual OS clipboard paste is established
+by changing the assertion; the original observation remains below.
 
 The following records the supplied Windows verification results; their scopes
 are distinct and do not imply broader platform or full-suite validation.

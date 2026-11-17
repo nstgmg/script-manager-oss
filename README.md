@@ -2,6 +2,8 @@
 
 **에이전트로 반복 업무를 자동화하고, 만들어 둔 스크립트는 Script Manager로 실행·관리하세요.**
 
+현재 소스의 제품 버전은 **0.1.1 (릴리스 준비 중)**입니다. 발행된 안정판은 [v0.1.0](https://github.com/nstgmg/script-manager-oss/releases/tag/v0.1.0)이며, [v0.1.1 릴리스 노트](docs/releases/v0.1.1.md)는 준비 문서입니다. VERSION 변경이나 main 반영만으로 Tag·Release가 발행된 것은 아닙니다.
+
 Script Manager는 내 컴퓨터에서 자동화 작업과 실행 기록, 저장 결과, 예약 일정을 관리하는 무료 오픈소스 도구입니다. 코드를 몰라도 Codex나 Claude Code 같은 코딩 에이전트에게 원하는 일을 설명하면, 에이전트가 재사용할 스크립트를 작성해 작업으로 등록할 수 있습니다.
 
 평소처럼 에이전트에게 자연어로 요청하면서, 처리 방법이 정해진 반복 실행은 일반 프로그램과 OS 예약에 맡깁니다. 불필요한 모델 호출과 실행 대기 시간을 줄이는 것이 목적입니다. **에이전트는 자동화를 만들고 결과를 해석하며, Script Manager는 등록된 작업을 실행하고 기록합니다.**
@@ -97,15 +99,17 @@ Git, Python, 소스와 의존성을 내려받을 네트워크 접근이 필요�
 
 ## 지원 OS와 검증 상태
 
-아래는 [최신 검증 기록](docs/validation.md#v010-publication-gate--2026-11-14)을 반영한 범위입니다. 구현되어 있다는 사실과 실제 환경에서 검증했다는 사실을 구분합니다.
+아래는 [v0.1.1 사전 감사와 기존 검증 기록](docs/validation.md#v011-pre-release-audit--2026-11-18)을 반영한 범위입니다. 이번 버전·문서 정리는 지원 범위 확대나 새 플랫폼 검증을 뜻하지 않습니다.
 
 | 범위 | macOS | Windows | Linux |
 | --- | --- | --- | --- |
-| CLI·수동 실행·저장 결과·HTML·Dashboard | ARM64 / Python 3.13.18에서 독립 설치와 주요 동작 검증 | 외부 PC / Python 3.14.3 설치·예제·결과 조회 성공 보고; HTML·Dashboard·새 복구 경로는 실검증 대기 | 구현, 실제 설치·실행 미검증 |
-| 로컬 OS 예약 | launchd 실제 등록·간격 실행·OS를 통한 작업 실행·변경·제거 검증 | Task Scheduler 구현·모의 테스트, 실환경 미검증 | 미지원 |
+| CLI·수동 실행·저장 결과·HTML·Dashboard | ARM64 / Python 3.13.18 과거 독립 설치·주요 동작 검증; 감사 대상 코드의 3.9.6 회귀 통과 | 외부 기본 설치·예제·결과 조회 성공 보고, 일부 UI fixture·보고서/CSV 성공 보고; 최신 NTFS·ACL·복구 경로와 전체 Dashboard 운영은 native 미검증 | 구현, 실제 설치·실행 미검증 |
+| 로컬 OS 예약 | launchd 실제 등록·간격 실행·OS를 통한 작업 실행·변경·제거의 과거 검증 | 구코드 calendar 실행·제거 외부 보고; 최신 소유권 판정·전체 예약 관리는 native 미검증 | 미지원 |
 | SSH 배포 대상 | 미지원 | 미지원 | systemd user 구현, 실서버 미검증·기능 제약 있음 |
 
 macOS 예약의 지정 요일·시각 도달에 따른 실행, 절전 복귀·로그인·재부팅 후 유지 여부는 검증하지 않았습니다. 기록에 없는 macOS·Python 버전이나 Intel Mac까지 검증한 것은 아닙니다. 과거 Python 3.9.6 기록과 상세 조건은 [검증 기록](docs/validation.md)에 보존되어 있습니다.
+
+**Windows 호환성 제한:** 현재 스냅샷·저장 Run 메타데이터 읽기·초기화 backend는 **local fixed NTFS 드라이브 경로**를 요구합니다. UNC/네트워크 경로, 이동식 드라이브, FAT/exFAT 등은 해당 경로에서 거부됩니다. 원자 저장에는 `FileRenameInfoEx`의 POSIX 교체 의미론 지원도 필요하며 미지원 시 우회 없이 오류로 중단합니다. 새 설치는 [설치 요구 사항](INSTALL.md#windows-파일시스템과-원자-저장-요구-사항), 기존 설치는 [업데이트 전 확인](UPDATE.md#windows-기존-설치의-v011-업데이트-전-확인)을 먼저 읽으세요. 이 안내는 기존 구현의 제약을 명시한 것이며 Windows 검증 완료 선언이 아닙니다.
 
 원격 Linux에서는 `required_env`를 선언한 작업의 환경 구성이 실패하는 알려진 제약이 있습니다. 로컬의 표준 데이터 경로 제공, 보고서 생성, 로그·결과 동기화도 동일하게 지원되지 않습니다. 배포의 `verified` 상태는 업무 실행 성공을 뜻하지 않습니다. [원격 제한](docs/packages.md#current-remote-limitations)을 확인하세요.
 
@@ -115,6 +119,7 @@ macOS 예약의 지정 요일·시각 도달에 따른 실행, 절전 복귀·�
 
 ## 문서와 Release
 
+- [v0.1.1 Release Notes (준비 중)](docs/releases/v0.1.1.md) · [사전 감사·검증 범위](docs/validation.md#v011-pre-release-audit--2026-11-18)
 - [v0.1.0 Release](https://github.com/nstgmg/script-manager-oss/releases/tag/v0.1.0) · [Release Notes](docs/releases/v0.1.0.md) · [전체 Releases](https://github.com/nstgmg/script-manager-oss/releases)
 - [사용자 가이드](USER_GUIDE.md) · [할 수 있는 일과 한계](docs/capabilities.md)
 - [설치·문제 해결](INSTALL.md) · [버전·업데이트](UPDATE.md) · [초기화·완전 삭제·예약 복구](docs/uninstall.md)

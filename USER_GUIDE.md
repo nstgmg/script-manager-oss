@@ -14,7 +14,7 @@ Git·Python·다운로드 접근이 필요하며, 에이전트가 새 설치와 
 
 ## 버전 확인과 제품 업데이트
 
-처음 설치는 [INSTALL](INSTALL.md), 기존 설치의 업데이트는 [UPDATE](UPDATE.md)를 따릅니다. 루트 [VERSION](VERSION)의 `0.1.0`은 공식 Release Tag `v0.1.0`에 대응할 **예정된 첫 배포 버전**이며 아직 Release를 발행하지 않았습니다. 현재 기본 clone은 `main` 개발 소스 설치입니다. Release가 없는 동안 최신 `main`을 안정 버전으로 간주하지 않습니다.
+처음 설치는 [INSTALL](INSTALL.md), 기존 설치의 업데이트는 [UPDATE](UPDATE.md)를 따릅니다. 발행된 안정판은 `v0.1.0`이며, 루트 [VERSION](VERSION)의 `0.1.1`과 [릴리스 노트](docs/releases/v0.1.1.md)는 다음 릴리스 준비 상태입니다. 기본 clone은 `main` 개발 소스 설치이며 VERSION 변경만으로 새 안정 Release가 생기지 않습니다. 실제 [공식 Releases](https://github.com/nstgmg/script-manager-oss/releases)의 Tag·커밋·VERSION을 대조하세요. 기존 Windows 설치는 [호환성 확인](UPDATE.md#windows-기존-설치의-v011-업데이트-전-확인)을 먼저 수행합니다.
 
 > Script Manager 업데이트 확인해 줘.
 
@@ -22,7 +22,7 @@ Git·Python·다운로드 접근이 필요하며, 에이전트가 새 설치와 
 
 > Script Manager 업데이트해 줘.
 
-이 명시적 요청이 있을 때 안전 점검과 계획 안내 후 승인 범위에서 제품 코드·의존성을 반영합니다. 아직 안정 Release가 없으면 적용할 안정 업데이트가 없다고 안내하고 멈춥니다. 로컬 수정·비호환 변경·실행 중 Job·Dashboard·활성 예약과 충돌하면 임의로 덮어쓰거나 중단하지 않습니다. 필요한 추가 선택만 확인하며 자동 업데이트·자동 재시작은 하지 않습니다.
+이 명시적 요청이 있을 때 안전 점검과 계획 안내 후 승인 범위에서 제품 코드·의존성을 반영합니다. 현재 설치보다 새로운 안정 Release가 없으면 적용할 안정 업데이트가 없다고 안내하고 멈추며, 준비 중인 main을 대신 적용하지 않습니다. 로컬 수정·비호환 변경·실행 중 Job·Dashboard·활성 예약과 충돌하면 임의로 덮어쓰거나 중단하지 않습니다. 필요한 추가 선택만 확인하며 자동 업데이트·자동 재시작은 하지 않습니다.
 
 기존 Job·Schedule·Output·State·Workspace·설정·비밀정보와 배포 이력을 보존하고, 적용 후 CLI·기존 Job 목록·필수 기능 및 기존 `sm-dashboard` Skill 등록을 최소 검증합니다. 외부 Skill 파일을 무단 교체하거나 전역 설치하지 않습니다. 결과에는 실제 버전·HEAD, 검증·미검증과 남은 작업이 포함됩니다. 실패 시 [코드 복구 절차](UPDATE.md#9-결과-보고와-실패-시-코드-복구)를 따르며 운영 데이터를 임의로 삭제하거나 과거 상태로 되돌리지 않습니다.
 

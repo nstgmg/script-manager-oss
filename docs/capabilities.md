@@ -37,15 +37,17 @@ Job은 **무엇을 실행할지**(명령·환경·제한시간·공개 입력)�
 
 ## OS별 지원과 확인 수준
 
-아래는 기존 검증 기록의 범위이며 이번 온보딩 문서 정비에서 새 플랫폼 검증을 수행한 것은 아닙니다.
+아래는 [v0.1.1 사전 감사와 기존 기록](validation.md#v011-pre-release-audit--2026-11-18)의 범위이며, 이번 버전·문서 정비에서 새 플랫폼 검증을 수행한 것은 아닙니다.
 
 | 기능 | macOS | Windows | Linux |
 | --- | --- | --- | --- |
-| CLI·수동 실행·저장 결과·HTML·Dashboard | ARM64 / Python 3.13.18 독립 설치 실검증; 과거 3.9.6 기록 보존 | 외부 PC / Python 3.14.3 설치·예제·결과 조회 성공 보고; HTML·Dashboard·새 복구 경로는 실검증 대기 | POSIX 구현, 실제 설치 미검증 |
-| 로컬 OS 예약 | launchd 구현, 기존 독립 설치 검증에서 native 적용 안 함 | Task Scheduler 구현, 실환경 미검증 | 미지원 |
+| CLI·수동 실행·저장 결과·HTML·Dashboard | ARM64 / Python 3.13.18 과거 독립 설치·주요 동작 검증; 감사 대상 코드의 3.9.6 회귀 통과 | 외부 기본 설치·예제·결과, 일부 UI fixture·보고서/CSV 성공 보고; 최신 NTFS·ACL·복구 경로와 전체 Dashboard 운영은 native 미검증 | POSIX 구현, 실제 설치 미검증 |
+| 로컬 OS 예약 | launchd 등록·간격 실행·OS 호출·변경·제거의 과거 실검증 | 구코드 calendar 실행·제거 외부 보고; 최신 소유권 판정·전체 예약 관리는 native 미검증 | 미지원 |
 | SSH 배포 대상 | 미지원 | 미지원 | systemd user 구현, 실서버 미검증·제한 있음 |
 
 Python·OS 준비와 상세 지원은 [INSTALL](../INSTALL.md#지원-범위와-사전-준비), 검증 근거는 [검증 기록](validation.md)·[공개 준비 기록](public-readiness.md)을 확인하세요. Intel macOS·다른 Python 버전·다른 브라우저까지 확인됐다고 확대 해석하지 않습니다.
+
+Windows의 영향받는 snapshot·저장 Run metadata·유지보수 경로는 local fixed NTFS를 요구하며 원자 저장에는 `FileRenameInfoEx` POSIX 교체 지원이 필요합니다. UNC/네트워크·이동식·비 NTFS 경로는 confined backend에서 거부됩니다. [설치 제약](../INSTALL.md#windows-파일시스템과-원자-저장-요구-사항)과 [기존 설치 업데이트 확인](../UPDATE.md#windows-기존-설치의-v011-업데이트-전-확인)을 먼저 읽으세요. 문서에 제약을 명시하는 것이 native Windows 성공을 뜻하지는 않습니다.
 
 원격 Linux에서는 `required_env`를 선언한 Job의 환경 구성이 실패하고, 로컬 표준 Output·State·Workspace 경로 주입·HTML 생성·로그/결과 동기화가 제공되지 않습니다. `verified`는 파일·systemd 적용 확인이며 업무 실행 성공이 아닙니다. 현재 로컬 Job을 그대로 올려 동일하게 운영할 수 있다고 안내하지 않습니다. [Package·원격 제한](packages.md)을 먼저 확인하세요.
 

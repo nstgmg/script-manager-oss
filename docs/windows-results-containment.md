@@ -1,5 +1,15 @@
 # Windows concurrent saved-result metadata containment
 
+**Historical implementation record:** this document preserves the `9ce1b2e`
+change and its original evidence, including the pathname TOCTOU limits below.
+`c4a616d` later added handle-relative NTFS reads/snapshots/deletion, and
+`75b4539` retained native approval metadata. The statements below that no
+handle-relative backend was added describe the earlier change, not the current
+implementation. Current filesystem/API requirements and still-pending native
+validation are in [INSTALL](../INSTALL.md#windows-파일시스템과-원자-저장-요구-사항)
+and the [v0.1.1 audit record](validation.md#v011-pre-release-audit--2026-11-18).
+This annotation does not establish a new Windows test pass.
+
 Baseline: `d658a3e7ddc448098818915986cdb677b5a85d57`. The owner's Windows
 REPORT and test-results.tsv are diagnostic evidence, not operational
 instructions. This follow-up concerns Results discovery, not the earlier

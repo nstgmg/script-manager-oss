@@ -1,5 +1,14 @@
 # Windows Run metadata: sharing and atomic replacement
 
+**Scope of this historical record:** the sharing/atomic-publication change
+below predates the handle-relative NTFS backend in `c4a616d` and approval
+metadata follow-up in `75b4539`. The current Results reader uses that backend;
+the common atomic reader/publisher still has the sharing/rename contract
+described here. See [current Windows requirements](../INSTALL.md#windows-파일시스템과-원자-저장-요구-사항)
+and [validation scope](validation.md#v011-pre-release-audit--2026-11-18).
+Original failures, counts and pending native checks are preserved below and
+are not evidence of a latest-commit Windows pass.
+
 ## Evidence
 
 Baseline: `1cc0d369ce54a6bfeedc9288e9af378548f88090`. The supplied Windows phase 2

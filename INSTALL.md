@@ -6,11 +6,15 @@
 
 ## 지원 범위와 사전 준비
 
+현재 소스의 VERSION은 `0.1.1`이며 릴리스 준비 상태입니다. 발행된 안정판 `v0.1.0`과 [v0.1.1 준비 본문](docs/releases/v0.1.1.md)을 구분하고, 설치할 안정 소스는 [공식 Releases](https://github.com/nstgmg/script-manager-oss/releases)에서 Tag·커밋·VERSION을 대조해 선택하세요. 이번 문서 정리는 새 OS 검증이나 지원 범위 변경이 아닙니다.
+
 | 범위 | macOS | Windows | Linux |
 | --- | --- | --- | --- |
-| CLI·수동 Job·결과·HTML·Dashboard | ARM64 / Python 3.13.18 독립 실검증 (기존 3.9.6 기록 보존) | 외부 PC / Python 3.14.3 설치·예제 실행·결과 조회 성공 보고 (9 PASS / 1 SKIP); HTML·Dashboard 및 이번 복구 경로는 실검증 대기 | POSIX 구현, 실제 설치 미검증 |
-| 로컬 예약 | launchd 구현, 이번 설치 검증에서 적용 안 함 | Task Scheduler 구현, 실환경 미검증 | 미지원 |
+| CLI·수동 Job·결과·HTML·Dashboard | ARM64 / Python 3.13.18 과거 독립 설치·주요 동작 검증; 감사 대상 코드의 3.9.6 회귀 통과 | 외부 PC / Python 3.14.3 기본 설치·예제·결과 성공 보고 (9 PASS / 1 SKIP); 일부 UI fixture·보고서/CSV 성공 보고. 최신 NTFS·ACL·복구 경로와 전체 Dashboard 운영은 native 미검증 | POSIX 구현, 실제 설치 미검증 |
+| 로컬 예약 | launchd 등록·간격 실행·OS 호출·변경·제거의 과거 실검증 | 구코드 calendar 실행·제거 외부 보고; 최신 소유권 판정·전체 예약 관리는 native 미검증 | 미지원 |
 | SSH 배포 대상 | 미지원 | 미지원 | systemd user 구현, 실서버 미검증·기능 제한 있음 |
+
+상세 기준 SHA·실행 환경과 제외 항목은 [v0.1.1 사전 감사 기록](docs/validation.md#v011-pre-release-audit--2026-11-18)에 있습니다. macOS calendar 시각 도달·sleep/login/reboot 유지·Intel Mac, 최신 Windows native 경로 및 실제 Linux/SSH 검증을 완료한 것으로 확대 해석하지 않습니다.
 
 코드의 최소 Python은 3.9입니다. Python 3.9는 [유지보수 종료](https://devguide.python.org/versions/) 상태이므로 새 실사용 환경에는 유지보수 중인 CPython을 준비하세요. 새 환경에는 Python 3.13을 권장하며, 3.13.18에서 독립 설치를 확인했습니다. 코드 최소 버전은 이번에 바꾸지 않았습니다. 3.9.6은 과거 호환성 기록이며 보안 권장 버전이 아닙니다. 다른 Python 버전·Intel macOS의 성공은 보장하지 않습니다. [실제 검증 기록](docs/validation.md)과 [원격 제한](docs/packages.md)을 확인하세요. 원격 required_env, 표준 로컬 데이터 경로·보고서·로그/결과 동기화는 로컬과 동일하게 지원되지 않습니다.
 
@@ -19,6 +23,14 @@
 Script Manager는 신뢰하는 로컬 단일 사용자가 검토한 Job을 실행하는 도구입니다. Job은 사용자 OS 권한으로 실행되며 sandbox가 아닙니다. GitHub Private Vulnerability Reporting은 활성화되어 있습니다. 보안 제보는 [SECURITY](SECURITY.md#reporting)의 GitHub 비공개 절차 또는 [security@def-v.com](mailto:security@def-v.com), 일반 문의는 [oss@def-v.com](mailto:oss@def-v.com)을 사용하세요.
 
 관리자 권한, DB, LLM API 키, Node, 브라우저 빌드는 기본 실행에 필요 없습니다. Node/Chrome은 선택적 개발 테스트 도구입니다. Job 전용 실행 파일과 라이브러리는 별도이며 자동 설치되지 않습니다. 프로젝트는 pip 패키지가 아니므로 pip install . 또는 전역 console command를 사용하지 않습니다.
+
+### Windows 파일시스템과 원자 저장 요구 사항
+
+현재 구현의 source snapshot, 저장 Run 메타데이터 읽기, 승인된 유지보수 인벤토리·삭제 backend는 **local fixed NTFS 드라이브의 절대 경로**를 요구합니다. Job 소스와 스냅샷 목적지, `--root`로 분리한 데이터 루트 및 그 경로의 구성요소도 점검해야 합니다. UNC/네트워크 경로, 이동식 드라이브, FAT/exFAT 등 비 NTFS 파일시스템과 junction/reparse 경유 경로는 해당 backend에서 거부됩니다. 이 제한은 일반 Job 실행과 Package 생성에도 영향을 줄 수 있습니다.
+
+Windows 원자 저장에는 `SetFileInformationByHandle(FileRenameInfoEx)`의 `REPLACE_IF_EXISTS | POSIX_SEMANTICS` 지원이 별도로 필요합니다. Windows 버전·파일시스템·드라이버·실행 계정의 접근 조건에 따라 실패할 수 있으며, NTFS라는 사실만으로 API/공유 동작까지 검증된 것은 아닙니다. 구현 문서의 진단 기준은 Windows 10 build 19045이지만 모든 Windows 10/11 조합을 인증한 최소 지원 버전 표는 아닙니다. 미지원 API·접근/공유 거부는 오류로 중단하고 기존 파일을 unlink/copy로 덮어쓰는 fallback이나 자동 권한 완화는 하지 않습니다.
+
+새 설치는 조건에 맞는 사용자 소유 비공유 경로를 선택하고 부모 ACL도 확인합니다. **기존 설치는 [업데이트 전 확인](UPDATE.md#windows-기존-설치의-v011-업데이트-전-확인)**을 먼저 따르세요. 파일시스템·API 적합성을 확인할 수 없으면 설치/업데이트를 보류하고 상태를 보고합니다. 확인을 위해 운영 Job을 재실행하거나 `reset`/`uninstall`, ACL 변경, 데이터 이동, OS 예약 재등록을 수행하지 않습니다. 최신 native Windows IO·ACL/token·잠금·정리 검증은 아직 완료되지 않았습니다.
 
 ## 1. 소스 받기
 
@@ -72,6 +84,8 @@ python3 -m venv .venv
 ```
 
 ### Windows (PowerShell 5.1/7, 새 복구 경로는 실검증 대기)
+
+진행 전에 [Windows 파일시스템·원자 저장 요구 사항](#windows-파일시스템과-원자-저장-요구-사항)을 확인합니다. 기존 환경은 아래 신규 설치 절차로 덮어쓰지 않고 [UPDATE](UPDATE.md#windows-기존-설치의-v011-업데이트-전-확인)를 따릅니다.
 
 Git과 venv/pip 포함 Python을 먼저 준비합니다. `py -3 --version`으로 실제 선택 버전을 확인합니다. 외부 PC에서는 3.14.3으로 기본 설치를 완료했지만 모든 3.14 조합의 호환성을 뜻하지 않습니다. Python launcher가 없다면 `& 'C:\path with spaces\python.exe' ...`처럼 확인한 실행 파일을 직접 호출합니다. `py -3`이 실행되지 않거나 다른 OS에서 작업 중이면 먼저 보고합니다.
 
@@ -295,4 +309,4 @@ Python 3.13부터 Windows의 `mkdir(mode=0o700)`은 부모 권한을 상속하�
 
 [pip 공식 옵션](https://pip.pypa.io/en/stable/cli/pip_install/#cmdoption-progress-bar)의 진행 표시 끄기와 [PowerShell native 종료 코드 처리](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_automatic_variables?view=powershell-5.1#lastexitcode)를 따릅니다. PowerShell 5.1/7, 프로필/비대화형, CMD에서 같은 환경을 비교하는 실제 Windows 후속 검증은 [검증 기록](docs/validation.md)에 남깁니다.
 
-기존 설치의 버전 확인·업데이트는 [UPDATE](UPDATE.md)를 따릅니다. “업데이트 확인해 줘”는 확인·안내만 수행하고, 명시적인 “업데이트해 줘” 요청일 때만 안전 점검 후 승인 범위에서 적용합니다. 현재 VERSION의 `0.1.0`은 예정된 첫 배포 버전이며 아직 Release를 발행하지 않았습니다. 위 기본 clone은 `main` 개발 소스 설치로, Release 부재 시 최신 `main`을 안정 버전으로 간주하지 않습니다. 저장소 관리자 간 수동 소스 반영은 별도 [기여 절차](CONTRIBUTING.md)를 따릅니다. 설치 제거를 이유로 예약·Job·runtime을 자동 삭제하지 않습니다.
+기존 설치의 버전 확인·업데이트는 [UPDATE](UPDATE.md)를 따릅니다. “업데이트 확인해 줘”는 확인·안내만 수행하고, 명시적인 “업데이트해 줘” 요청일 때만 안전 점검 후 승인 범위에서 적용합니다. `v0.1.0`은 발행된 안정판이고 현재 VERSION `0.1.1`은 다음 릴리스 준비 상태입니다. 위 기본 clone은 `main` 개발 소스 설치이며 준비 커밋을 안정 Release의 대용으로 사용하지 않습니다. 저장소 관리자 간 수동 소스 반영은 별도 [기여 절차](CONTRIBUTING.md)를 따릅니다. 설치 제거를 이유로 예약·Job·runtime을 자동 삭제하지 않습니다.
