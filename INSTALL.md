@@ -10,11 +10,11 @@
 
 | 범위 | macOS | Windows | Linux |
 | --- | --- | --- | --- |
-| CLI·수동 Job·결과·HTML·Dashboard | ARM64 / Python 3.13.18 과거 독립 설치·주요 동작 검증; 감사 대상 코드의 3.9.6 회귀 통과 | 외부 PC / Python 3.14.3 기본 설치·예제·결과 성공 보고 (9 PASS / 1 SKIP); 일부 UI fixture·보고서/CSV 성공 보고. 최신 NTFS·ACL·복구 경로와 전체 Dashboard 운영은 native 미검증 | POSIX 구현, 실제 설치 미검증 |
-| 로컬 예약 | launchd 등록·간격 실행·OS 호출·변경·제거의 과거 실검증 | 구코드 calendar 실행·제거 외부 보고; 최신 소유권 판정·전체 예약 관리는 native 미검증 | 미지원 |
+| CLI·수동 Job·결과·HTML·Dashboard | ARM64 / Python 3.13.18 과거 독립 설치·주요 동작 검증; 감사 대상 코드의 3.9.6 회귀 통과 | 통합 검증 완료 보고: 467건 중 427 PASS / 36 N/A / 당시 4 SKIP. 이후 Windows 재설치와 T1·T2 UI fixture, T3 보고서 주요 기능, T4 Chrome·실제 CSV 검증 PASS. 기존 Python 3.14.3 기본 설치 기록(9 PASS / 1 SKIP)은 별도 과거 결과 | POSIX 구현, 실제 설치 미검증 |
+| 로컬 예약 | launchd 등록·간격 실행·OS 호출·변경·제거의 과거 실검증 | 통합 검증의 예약 관련 결과와 기존 calendar 실행·제거 기록 보존; 모의 소유권 검증과 실제 OS 실행 범위는 상세 기록에서 구분 | 미지원 |
 | SSH 배포 대상 | 미지원 | 미지원 | systemd user 구현, 실서버 미검증·기능 제한 있음 |
 
-상세 기준 SHA·실행 환경과 제외 항목은 [v0.1.1 사전 감사 기록](docs/validation.md#v011-pre-release-audit--2026-11-18)에 있습니다. macOS calendar 시각 도달·sleep/login/reboot 유지·Intel Mac, 최신 Windows native 경로 및 실제 Linux/SSH 검증을 완료한 것으로 확대 해석하지 않습니다.
+상세 기준 SHA·실행 환경과 기능별 범위는 [Windows 검증 기록 최종 정정](docs/validation.md#windows-verification-correction--2026-11-18)과 기존 기록에 있습니다. `75b4539`와 공식 v0.1.1의 핵심 backend는 동일하여 기존 Windows 결과를 재사용합니다. 당시 4 SKIP과 macOS 조건부 33 SKIP을 현재 Windows 전체 미검증 수치로 해석하지 않습니다. 이후 변경된 UI 및 fixture·실제 OS 동작의 범위는 구분하며, macOS calendar 시각 도달·sleep/login/reboot 유지·Intel Mac과 실제 Linux/SSH 검증으로 확대하지 않습니다.
 
 코드의 최소 Python은 3.9입니다. Python 3.9는 [유지보수 종료](https://devguide.python.org/versions/) 상태이므로 새 실사용 환경에는 유지보수 중인 CPython을 준비하세요. 새 환경에는 Python 3.13을 권장하며, 3.13.18에서 독립 설치를 확인했습니다. 코드 최소 버전은 이번에 바꾸지 않았습니다. 3.9.6은 과거 호환성 기록이며 보안 권장 버전이 아닙니다. 다른 Python 버전·Intel macOS의 성공은 보장하지 않습니다. [실제 검증 기록](docs/validation.md)과 [원격 제한](docs/packages.md)을 확인하세요. 원격 required_env, 표준 로컬 데이터 경로·보고서·로그/결과 동기화는 로컬과 동일하게 지원되지 않습니다.
 
@@ -30,7 +30,7 @@ Script Manager는 신뢰하는 로컬 단일 사용자가 검토한 Job을 실�
 
 Windows 원자 저장에는 `SetFileInformationByHandle(FileRenameInfoEx)`의 `REPLACE_IF_EXISTS | POSIX_SEMANTICS` 지원이 별도로 필요합니다. Windows 버전·파일시스템·드라이버·실행 계정의 접근 조건에 따라 실패할 수 있으며, NTFS라는 사실만으로 API/공유 동작까지 검증된 것은 아닙니다. 구현 문서의 진단 기준은 Windows 10 build 19045이지만 모든 Windows 10/11 조합을 인증한 최소 지원 버전 표는 아닙니다. 미지원 API·접근/공유 거부는 오류로 중단하고 기존 파일을 unlink/copy로 덮어쓰는 fallback이나 자동 권한 완화는 하지 않습니다.
 
-새 설치는 조건에 맞는 사용자 소유 비공유 경로를 선택하고 부모 ACL도 확인합니다. **기존 설치는 [업데이트 전 확인](UPDATE.md#windows-기존-설치의-v011-업데이트-전-확인)**을 먼저 따르세요. 파일시스템·API 적합성을 확인할 수 없으면 설치/업데이트를 보류하고 상태를 보고합니다. 확인을 위해 운영 Job을 재실행하거나 `reset`/`uninstall`, ACL 변경, 데이터 이동, OS 예약 재등록을 수행하지 않습니다. 최신 native Windows IO·ACL/token·잠금·정리 검증은 아직 완료되지 않았습니다.
+새 설치는 조건에 맞는 사용자 소유 비공유 경로를 선택하고 부모 ACL도 확인합니다. **기존 설치는 [업데이트 전 확인](UPDATE.md#windows-기존-설치의-v011-업데이트-전-확인)**을 따르세요. 경로·파일시스템·API·권한·데이터 보존 조건이 충족되는 Windows 10/11 환경은 기존 통합 검증과 후속 스모크 기록을 근거로 설치·업데이트할 수 있습니다. 로컬 NTFS 사용 자체는 보류 사유가 아닙니다. 미지원 경로나 실제 설치 환경의 호환성이 해결되지 않은 경우에는 해당 조건을 보고하고 보류합니다. 확인을 위해 운영 Job 재실행, `reset`/`uninstall`, ACL 변경, 데이터 이동, OS 예약 재등록을 수행하지 않습니다.
 
 ## 1. 소스 받기
 

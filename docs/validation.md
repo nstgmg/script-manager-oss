@@ -1,5 +1,84 @@
 # Validation records
 
+## Windows verification correction — 2026-11-18
+
+This final correction recognizes the existing Windows completion reports; it
+does not record a new test run. The official `v0.1.1` tag remains at
+`5405e2d49d2a734d35cfb711693c600efb4aee3c`. Earlier dated records below,
+including failures and skips, retain their historical meaning.
+
+### Integrated Windows verification
+
+The owner's 2026-11-17 completion report for
+`75b453971860ad3c28936aae40367032d3da11d0` is accepted as an official historical
+Windows execution record. Run ID: `20261117T055906Z-1b9c3750`.
+
+| Baseline accounting | Reported result |
+| --- | ---: |
+| Total | 467 |
+| PASS | 427 |
+| NOT_APPLICABLE | 36 |
+| SKIP_UNVERIFIED | 4 |
+| FAIL / ERROR / NOT_RUN | 0 / 0 / 0 |
+| Reused evidence entries | 282 |
+| Newly executed checks | 185 |
+
+The baseline contains 396 Python test methods and 71 Node tests. Reused
+evidence and new executions account for the same 467 checks; they are not
+additional totals. The four browser-related SKIP_UNVERIFIED entries describe
+this baseline at that time, not the current overall Windows verification state.
+The report's N/A classifications are retained as reported; they do not create
+new PASS results or establish real OS execution for every scheduler fixture.
+
+The original result ZIP and manifest were not directly available in this
+macOS audit. This is an evidence-preservation/direct-inspection limitation,
+not a reason to reclassify the completed work as unperformed or defective.
+
+### Windows reinstall and T1–T4 follow-up
+
+After integrated verification, the owner reported reinstalling Script Manager
+on Windows and completing these smoke checks:
+
+| Check | Reported follow-up result and scope |
+| --- | --- |
+| T1 responsive Job UI | **Fixture PASS** |
+| T2 management UI | **Fixture PASS** |
+| T3 offline HTML report | **Major product functionality PASS**; original clipboard-fallback assertion failure retained separately |
+| T4 external report and CSV | **PASS**; Chrome and actual CSV files checked |
+
+These checks are later evidence, not a rewrite of the original four SKIPs.
+A complete one-to-one test-ID equivalence between those four entries and
+T1–T4 is not established; the historical 427/36/4 totals are unchanged.
+Fixture PASS does not certify every Dashboard operation.
+
+The test-only `08bfa2f454ec4ae6dab2d932b96ecc0eb3ef3ca2` corrected T3's
+textarea CRLF/LF comparison and selection-length assertion. The subsequent
+macOS browser audit passed with that correction. This establishes the
+assertion change and Mac follow-up, not a reported Windows automated rerun
+or actual OS clipboard paste. Those narrow limits do not negate the completed
+T3 product-functionality smoke check. The original T1–T4 record remains below.
+
+### Reuse against the release and audit closure
+
+Git object comparison confirms identical `runner/`, `deployments/`, `scripts/`
+trees and the `requirements.txt` blob between `75b4539` and official
+`v0.1.1`. Existing Windows results are reusable historical evidence for that
+unchanged core backend; a different release commit does not require rerunning
+identical backend code. Subsequent Dashboard UI and related test changes,
+including notification changes in `83fc283`, are assessed separately and do
+not gain Windows PASS results from this reuse.
+
+The Mac audit's **33 SKIPs are not 33 unverified Windows checks**: 29 were
+Windows-specific conditions and four were macOS native opt-ins. Windows status
+is described by the separate Windows execution and smoke records above.
+
+For Windows 10/11 installations meeting the local fixed NTFS, native API,
+permission and data-preservation conditions, the existing records support
+updating under [UPDATE.md](../UPDATE.md#windows-기존-설치의-v011-업데이트-전-확인).
+Local NTFS use is not itself a reason to defer. The verification audit is
+closed with this documentation correction; no additional Windows execution,
+VM restoration or original-artifact recovery is required by this correction.
+
 ## v0.1.1 pre-release audit — 2026-11-18
 
 Product-code baseline: `83fc283940148a9d8f7bdb0bc107c5ec177c3b65`, compared
@@ -33,6 +112,9 @@ temporary data, fixture-owned loopback servers and offline Chrome profiles;
 no operating Job/data reset, actual OS registration/removal, resident
 Dashboard control or SSH was performed.
 
+These are conditions of this Mac run, not a Windows nonexecution count;
+see the [final Windows correction](#windows-verification-correction--2026-11-18).
+
 ### Native evidence and remaining limits
 
 - **macOS:** earlier ARM64/Python 3.13.18 independent installation and main
@@ -43,16 +125,18 @@ Dashboard control or SSH was performed.
   login/reboot persistence, Intel Macs and other OS/Python combinations are
   outside that evidence. The current-source full run above used 3.9.6,
   not a new 3.13 full regression.
-- **Windows:** external reports cover Python 3.14.3 basic installation/example/
-  saved results, selected UI fixtures and report/CSV behavior, and an older-code
-  calendar Run/removal. The `d658a3e` report of 313 PASS/50 SKIP and four of ten
+- **Windows:** the [final correction](#windows-verification-correction--2026-11-18)
+  records completed integrated verification (467 checks: 427 PASS, 36 N/A,
+  four historical SKIPs) and subsequent Windows reinstall/T1–T4 smoke results.
+  Earlier reports also cover Python 3.14.3 basic installation/example/saved
+  results and an older-code calendar Run/removal. The `d658a3e` report of
+  313 PASS/50 SKIP and four of ten
   failed concurrent observation runs is preserved in
   [the containment history](windows-results-containment.md); it is not a
-  latest-backend result. The `acf2188`/`c4a616d`/`75b4539` native locking,
-  confined I/O and approval tests were skipped on Mac. Latest NTFS/API support,
-  ACL/token interaction, concurrent observation, cleanup and fixed task
-  ownership remain native verification gaps. T1/T2 fixture PASS does not
-  certify full Dashboard operation. Actual OS clipboard pasting is unverified.
+  latest-backend result. The `acf2188`/`c4a616d`/`75b4539` tests being skipped
+  on Mac does not invalidate the separate Windows completion record.
+  Unchanged backend results are reusable; later UI changes, fixture versus
+  real Task Scheduler scope, and actual OS clipboard pasting remain distinct.
 - **Linux/SSH:** POSIX helper and mocked transport/systemd tests are not native
   Linux installation, real systemd or SSH deployment verification. Linux local
   scheduling is unsupported. Remote `required_env`, managed local-style paths,

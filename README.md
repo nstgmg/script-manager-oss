@@ -99,17 +99,19 @@ Git, Python, 소스와 의존성을 내려받을 네트워크 접근이 필요�
 
 ## 지원 OS와 검증 상태
 
-아래는 [v0.1.1 사전 감사와 기존 검증 기록](docs/validation.md#v011-pre-release-audit--2026-11-18)을 반영한 범위입니다. 이번 버전·문서 정리는 지원 범위 확대나 새 플랫폼 검증을 뜻하지 않습니다.
+아래는 [Windows 검증 기록 최종 정정](docs/validation.md#windows-verification-correction--2026-11-18)과 기존 macOS·Linux 기록을 반영한 범위입니다. 기존 Windows 수행 기록을 정리한 것이며, 지원 범위 확대나 새 테스트 실행을 뜻하지 않습니다.
 
 | 범위 | macOS | Windows | Linux |
 | --- | --- | --- | --- |
-| CLI·수동 실행·저장 결과·HTML·Dashboard | ARM64 / Python 3.13.18 과거 독립 설치·주요 동작 검증; 감사 대상 코드의 3.9.6 회귀 통과 | 외부 기본 설치·예제·결과 조회 성공 보고, 일부 UI fixture·보고서/CSV 성공 보고; 최신 NTFS·ACL·복구 경로와 전체 Dashboard 운영은 native 미검증 | 구현, 실제 설치·실행 미검증 |
-| 로컬 OS 예약 | launchd 실제 등록·간격 실행·OS를 통한 작업 실행·변경·제거의 과거 검증 | 구코드 calendar 실행·제거 외부 보고; 최신 소유권 판정·전체 예약 관리는 native 미검증 | 미지원 |
+| CLI·수동 실행·저장 결과·HTML·Dashboard | ARM64 / Python 3.13.18 과거 독립 설치·주요 동작 검증; 감사 대상 코드의 3.9.6 회귀 통과 | 통합 검증 완료 보고: 467건 중 427 PASS / 36 N/A / 당시 4 SKIP. 이후 Windows 재설치와 T1·T2 UI fixture, T3 보고서 주요 기능, T4 Chrome·실제 CSV 검증 PASS | 구현, 실제 설치·실행 미검증 |
+| 로컬 OS 예약 | launchd 실제 등록·간격 실행·OS를 통한 작업 실행·변경·제거의 과거 검증 | 통합 검증의 예약 관련 결과와 기존 calendar 실행·제거 기록 보존; 모의 소유권 검증과 실제 OS 실행 범위는 상세 기록에서 구분 | 미지원 |
 | SSH 배포 대상 | 미지원 | 미지원 | systemd user 구현, 실서버 미검증·기능 제약 있음 |
 
 macOS 예약의 지정 요일·시각 도달에 따른 실행, 절전 복귀·로그인·재부팅 후 유지 여부는 검증하지 않았습니다. 기록에 없는 macOS·Python 버전이나 Intel Mac까지 검증한 것은 아닙니다. 과거 Python 3.9.6 기록과 상세 조건은 [검증 기록](docs/validation.md)에 보존되어 있습니다.
 
-**Windows 호환성 제한:** 현재 스냅샷·저장 Run 메타데이터 읽기·초기화 backend는 **local fixed NTFS 드라이브 경로**를 요구합니다. UNC/네트워크 경로, 이동식 드라이브, FAT/exFAT 등은 해당 경로에서 거부됩니다. 원자 저장에는 `FileRenameInfoEx`의 POSIX 교체 의미론 지원도 필요하며 미지원 시 우회 없이 오류로 중단합니다. 새 설치는 [설치 요구 사항](INSTALL.md#windows-파일시스템과-원자-저장-요구-사항), 기존 설치는 [업데이트 전 확인](UPDATE.md#windows-기존-설치의-v011-업데이트-전-확인)을 먼저 읽으세요. 이 안내는 기존 구현의 제약을 명시한 것이며 Windows 검증 완료 선언이 아닙니다.
+`75b4539`와 공식 v0.1.1의 핵심 backend는 동일하여 기존 Windows 검증 결과를 재사용합니다. 당시 4 SKIP과 macOS의 조건부 33 SKIP은 현재 Windows 전체의 미검증 수치가 아닙니다. 후속 UI 변경, fixture 검증 범위 및 실제 OS 클립보드 동작은 [상세 기록](docs/validation.md#windows-verification-correction--2026-11-18)에서 구분합니다.
+
+**Windows 호환성 제한:** 현재 스냅샷·저장 Run 메타데이터 읽기·초기화 backend는 **local fixed NTFS 드라이브 경로**를 요구합니다. UNC/네트워크 경로, 이동식 드라이브, FAT/exFAT 등은 해당 경로에서 거부됩니다. 원자 저장에는 `FileRenameInfoEx`의 POSIX 교체 의미론 지원도 필요하며 미지원 시 우회 없이 오류로 중단합니다. 일반적인 Windows 10/11의 로컬 고정 NTFS 환경에서 경로·API·권한·데이터 보존 조건이 충족되면 기존 검증 기록에 근거해 업데이트할 수 있습니다. 새 설치는 [설치 요구 사항](INSTALL.md#windows-파일시스템과-원자-저장-요구-사항), 기존 설치는 [업데이트 전 확인](UPDATE.md#windows-기존-설치의-v011-업데이트-전-확인)을 따르세요.
 
 원격 Linux에서는 `required_env`를 선언한 작업의 환경 구성이 실패하는 알려진 제약이 있습니다. 로컬의 표준 데이터 경로 제공, 보고서 생성, 로그·결과 동기화도 동일하게 지원되지 않습니다. 배포의 `verified` 상태는 업무 실행 성공을 뜻하지 않습니다. [원격 제한](docs/packages.md#current-remote-limitations)을 확인하세요.
 

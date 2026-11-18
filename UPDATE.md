@@ -57,13 +57,13 @@ API의 404만으로 Release 부재를 단정하지 말고 저장소 접근과 Re
 
 ### Windows 기존 설치의 v0.1.1 업데이트 전 확인
 
-이 안내는 이미 반영된 파일시스템 구현의 제약을 명시합니다. 문서 변경이 새 Windows 지원이나 native 검증 완료를 뜻하지 않습니다. 안정 업데이트 대상은 실제 발행된 공식 Release에서 선택한 뒤 아래 호환성을 확인합니다.
+이 안내는 기존 구현의 호환성 조건과 [Windows 통합 검증·재설치 후 스모크 완료 기록](docs/validation.md#windows-verification-correction--2026-11-18)을 함께 반영합니다. 일반적인 Windows 10/11의 로컬 고정 NTFS 환경에서 아래 경로·API·권한·데이터 보존 조건이 충족되면 v0.1.1 업데이트를 권장할 수 있습니다. NTFS 사용 자체는 보류 사유가 아닙니다. 안정 업데이트 대상은 실제 발행된 공식 Release에서 선택합니다.
 
 1. **경로·OS·파일시스템 확인:** 기존 코드 루트·실제 데이터 루트(`--root`)·Job 소스·스냅샷/Package 임시 경로, Windows build와 실행 계정/Python을 기록합니다. 읽기 전용 OS 속성 조회로 관련 경로가 local fixed NTFS인지, UNC/네트워크·이동식·비 NTFS 또는 junction/reparse 경유인지 확인합니다. [설치 요구 사항](INSTALL.md#windows-파일시스템과-원자-저장-요구-사항)에 맞지 않으면 코드 전환을 보류합니다.
-2. **원자 저장 API 확인:** metadata 저장에는 `FileRenameInfoEx`의 POSIX replacement 지원이 필요합니다. 지원되는 OS/API·드라이버·실행 문맥의 근거를 확인하며, 단순히 NTFS이거나 이전 버전이 실행됐다는 사실로 충족을 단정하지 않습니다. Windows 10 build 19045의 과거 외부 보고는 최신 backend 인증이 아닙니다. 근거가 부족하면 호환성 미확인으로 보류하고, 필요한 격리 합성 검증은 별도 범위로 계획합니다. 운영 Run 재제출이나 실제 데이터의 교체/삭제로 시험하지 않습니다.
+2. **원자 저장 API 확인:** metadata 저장에는 `FileRenameInfoEx`의 POSIX replacement 지원이 필요합니다. 기존 Windows 수행 기록과 설치 환경의 OS/API·드라이버·실행 문맥을 확인합니다. NTFS라는 사실만으로 모든 조합의 동작을 보증하지는 않으며, 미지원 API나 해당 설치의 미해결 접근·공유 오류는 구체적인 보류 사유입니다. 동일 backend의 기존 검증을 태그가 다르다는 이유로 반복하지 않습니다. 운영 Run 재제출이나 실제 데이터의 교체/삭제로 시험하지 않습니다.
 3. **데이터·ACL 보존:** Jobs·Schedules/OS 등록·Output·State·Workspace·설정·비밀정보·환경·Packages/history와 로컬 변경을 보존합니다. 부모 ACL이 필요한 계정에만 상속되는지 확인하되 실제 `.env`는 읽지 않습니다. 코드 업데이트는 기존 ACL을 수리하지 않습니다. 접근 거부는 [ACL 진단](INSTALL.md#windows-런타임-acl-복구)으로 분리하고 자동 elevation·ACL reset·Everyone 권한 추가를 하지 않습니다.
 4. **업데이트와 복구 분리:** 위 조건이 확인된 뒤 아래 실행 상태 점검과 승인된 코드 업데이트를 진행합니다. 미지원 경로를 발견해도 자동 데이터 이동·새 root 전환·설치 ID 재생성·활성 예약 재등록·서비스 재시작을 하지 않습니다. 별도 변경 계획과 필요한 승인을 먼저 확인합니다. 업데이트에 `reset` 또는 `uninstall`은 필요하지 않습니다.
-5. **계약과 검증 한계:** Job YAML·공개 파라미터 계약·선언 의존성의 일괄 마이그레이션은 없습니다. 설치 ID는 root에 묶이고 lazy 생성되며, 과거 유지보수 확인 해시는 재사용하지 않고 Windows 승인 schema 2의 새 preview가 필요합니다. 최신 native NTFS·ACL/token·locking·동시 metadata 관찰·초기화·수정된 예약 소유권 검증은 아직 미완료입니다. 외부 설치/선택 UI·보고서/구코드 calendar 보고와 구분한 [검증 범위](docs/validation.md#v011-pre-release-audit--2026-11-18)를 유지합니다.
+5. **계약과 검증 범위:** Job YAML·공개 파라미터 계약·선언 의존성의 일괄 마이그레이션은 없습니다. 설치 ID는 root에 묶이고 lazy 생성되며, 과거 유지보수 확인 해시는 재사용하지 않고 Windows 승인 schema 2의 새 preview가 필요합니다. `75b4539`의 통합 검증 완료 보고(467건: 427 PASS / 36 N/A / 당시 4 SKIP)와 이후 Windows 재설치·T1~T4 스모크 기록을 인정합니다. 공식 v0.1.1과 동일한 핵심 backend 결과는 재사용하며, 이후 UI 변경·fixture 범위·실제 OS 클립보드 동작은 [상세 기록](docs/validation.md#windows-verification-correction--2026-11-18)에서 구분합니다. 과거 SKIP 수치만으로 전체 Windows 업데이트를 보류하지 않습니다.
 
 ## 4. 사용자 데이터와 설정 보호
 
