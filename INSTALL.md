@@ -8,6 +8,8 @@
 
 현재 소스의 VERSION은 `0.1.1`입니다. [v0.1.1 릴리스 노트](docs/releases/v0.1.1.md)에서 변경·호환성·검증 범위를 확인하고, 설치할 안정 소스는 [공식 Releases](https://github.com/nstgmg/script-manager-oss/releases)에서 Tag·커밋·VERSION을 대조해 선택하세요. VERSION이나 main 반영만으로 공식 발행을 판단하지 않습니다. 이번 문서 정리는 새 OS 검증이나 지원 범위 변경이 아닙니다.
 
+신규 설치의 기본 clone은 `main` 기준이며, 안정판을 선택하면 확인한 Release 소스를 사용합니다. 기존 설치는 재설치 대신 [공식 main의 최신 UPDATE.md](https://github.com/nstgmg/script-manager-oss/blob/main/UPDATE.md) 확인부터 진행하며, 실제 적용 기준은 최신 발행 안정 Release/Tag입니다. 승인된 조회 경로 선택, VERSION·HEAD와 실제 코드 비교, 운영 점검은 UPDATE에 모아 둡니다. 웹 조회 성공이 clone/fetch·의존성 설치 접근을 보장하지는 않습니다.
+
 | 범위 | macOS | Windows | Linux |
 | --- | --- | --- | --- |
 | CLI·수동 Job·결과·HTML·Dashboard | ARM64 / Python 3.13.18 과거 독립 설치·주요 동작 검증; 감사 대상 코드의 3.9.6 회귀 통과 | 통합 검증 완료 보고: 467건 중 427 PASS / 36 N/A / 당시 4 SKIP. 이후 Windows 재설치와 T1·T2 UI fixture, T3 보고서 주요 기능, T4 Chrome·실제 CSV 검증 PASS. 기존 Python 3.14.3 기본 설치 기록(9 PASS / 1 SKIP)은 별도 과거 결과 | POSIX 구현, 실제 설치 미검증 |
